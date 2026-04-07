@@ -1,0 +1,248 @@
+"""Excel file parser — extracts CSV, formulas, charts, and formatting metadata."""
+
+from __future__ import annotations
+
+import io
+import re
+from pathlib import Path
+
+import openpyxl
+import pandas as pd
+from openpyxl.chart import BarChart, LineChart, PieChart, AreaChart, ScatterChart
+from openpyxl.utils import get_column_letter
+
+from ..models import (
+    ChartInfo,
+    FormatInfo,
+    FormulaInfo,
+    PreparedData,
+    SheetData,
+)
+
+# Row truncation thresholds
+MAX_ROWS_FULL = 500
+HEAD_ROWS = 100
+TAIL_ROWS = 50
+
+
+def parse_excel(
+    excel_path: str | Path,
+    grounding_data: str = "",
+    user_prompt: str = "",
+) -> PreparedData:
+    """Parse an Excel file and extract all structured data for evaluation.
+
+    Returns a PreparedData object with sheets, formulas, charts,
+    formatting metadata, and cross-sheet references.
+    """
+    excel_path = Path(excel_path)
+    if not excel_path.exists():
+        raise FileNotFoundError(f"Excel file not found: {excel_path}")
+
+    wb = openpyxl.load_workbook(str(excel_path), data_only=False)
+    wb_values = openpyxl.load_workbook(str(excel_path), data_only=True)
+
+    sheets = _extract_sheets(excel_path)
+    formulas = _extract_formulas(wb, wb_values)
+    charts = _extract_charts(wb)
+    formatting = _extract_formatting(wb)
+    cross_refs = _extract_cross_sheet_refs(wb)
+
+    wb.close()
+    wb_values.close()
+
+    return PreparedData(
+        sheets=sheets,
+        formulas=formulas,
+        charts=charts,
+        formatting=formatting,
+        cross_sheet_refs=cross_refs,
+        screenshots={},  # Populated separately by screenshot module
+        grounding_data=grounding_data,
+        user_prompt=user_prompt,
+    )
+
+
+def _extract_sheets(excel_path: Path) -> list[SheetData]:
+    """Export each sheet to CSV text with truncation for large sheets."""
+    xls = pd.ExcelFile(excel_path)
+    sheets: list[SheetData] = []
+
+    for sheet_name in xls.sheet_names:
+        df = pd.read_excel(xls, sheet_name=sheet_name, header=0)
+        row_count, col_count = df.shape
+        truncated = False
+
+        if row_count > MAX_ROWS_FULL:
+            head = df.head(HEAD_ROWS)
+            tail = df.tail(TAIL_ROWS)
+            truncated_count = row_count - HEAD_ROWS - TAIL_ROWS
+            marker = pd.DataFrame(
+                {col: [f"[... {truncated_count} rows truncated ...]"] for col in df.columns},
+                index=[0],
+            )
+            df = pd.concat([head, marker, tail], ignore_index=True)
+            truncated = True
+
+        csv_text = df.to_csv(index=False)
+        sheets.append(SheetData(
+            name=sheet_name,
+            csv_text=csv_text,
+            row_count=row_count,
+            col_count=col_count,
+            truncated=truncated,
+        ))
+
+    return sheets
+
+
+def _extract_formulas(
+    wb: openpyxl.Workbook,
+    wb_values: openpyxl.Workbook,
+) -> list[FormulaInfo]:
+    """Extract all formulas with their computed values."""
+    formulas: list[FormulaInfo] = []
+
+    for ws in wb.worksheets:
+        ws_values = wb_values[ws.title]
+        for row in ws.iter_rows():
+            for cell in row:
+                if isinstance(cell.value, str) and cell.value.startswith("="):
+                    coord = cell.coordinate
+                    computed = ws_values[coord].value
+                    has_error = isinstance(computed, str) and computed.startswith("#")
+
+                    formulas.append(FormulaInfo(
+                        cell=coord,
+                        sheet=ws.title,
+                        formula=cell.value,
+                        computed_value=computed,
+                        has_error=has_error,
+                    ))
+
+    return formulas
+
+
+def _extract_charts(wb: openpyxl.Workbook) -> list[ChartInfo]:
+    """Extract chart metadata from all sheets."""
+    charts: list[ChartInfo] = []
+    chart_type_map = {
+        BarChart: "bar",
+        LineChart: "line",
+        PieChart: "pie",
+        AreaChart: "area",
+        ScatterChart: "scatter",
+    }
+
+    for ws in wb.worksheets:
+        for chart in ws._charts:
+            chart_type = "unknown"
+            for cls, name in chart_type_map.items():
+                if isinstance(chart, cls):
+                    chart_type = name
+                    break
+
+            title = None
+            if chart.title:
+                title = str(chart.title)
+
+            data_range = None
+            if chart.series:
+                try:
+                    data_range = str(chart.series[0].val.numRef.f)
+                except (AttributeError, IndexError):
+                    pass
+
+            has_legend = chart.legend is not None
+            has_axis_labels = False
+            if hasattr(chart, "x_axis") and chart.x_axis.title:
+                has_axis_labels = True
+            elif hasattr(chart, "y_axis") and chart.y_axis.title:
+                has_axis_labels = True
+
+            charts.append(ChartInfo(
+                sheet=ws.title,
+                chart_type=chart_type,
+                title=title,
+                data_range=data_range,
+                has_legend=has_legend,
+                has_axis_labels=has_axis_labels,
+            ))
+
+    return charts
+
+
+def _extract_formatting(wb: openpyxl.Workbook) -> FormatInfo:
+    """Extract workbook-level formatting metadata."""
+    fonts_used: set[str] = set()
+    colors_used: set[str] = set()
+    merged_ranges: list[str] = []
+    conditional_rules: list[str] = []
+    frozen_panes: dict[str, str] = {}
+    has_cf = False
+
+    for ws in wb.worksheets:
+        # Fonts and colors
+        for row in ws.iter_rows(max_row=min(ws.max_row or 0, 100)):
+            for cell in row:
+                if cell.font and cell.font.name:
+                    fonts_used.add(cell.font.name)
+                if cell.font and cell.font.color and cell.font.color.rgb:
+                    color = str(cell.font.color.rgb)
+                    if color != "00000000":
+                        colors_used.add(color)
+                if cell.fill and cell.fill.start_color and cell.fill.start_color.rgb:
+                    color = str(cell.fill.start_color.rgb)
+                    if color != "00000000":
+                        colors_used.add(color)
+
+        # Merged cells
+        for merged_range in ws.merged_cells.ranges:
+            merged_ranges.append(f"{ws.title}!{merged_range}")
+
+        # Conditional formatting
+        for cf_rule in ws.conditional_formatting:
+            has_cf = True
+            conditional_rules.append(f"{ws.title}: {cf_rule}")
+
+        # Frozen panes
+        if ws.freeze_panes:
+            frozen_panes[ws.title] = str(ws.freeze_panes)
+
+    return FormatInfo(
+        fonts_used=sorted(fonts_used),
+        color_palette=sorted(colors_used)[:20],  # Cap at 20 colors
+        has_conditional_formatting=has_cf,
+        conditional_format_rules=conditional_rules[:50],  # Cap at 50 rules
+        merged_cell_ranges=merged_ranges,
+        frozen_panes=frozen_panes,
+    )
+
+
+def _extract_cross_sheet_refs(wb: openpyxl.Workbook) -> list[str]:
+    """Find formulas that reference other sheets."""
+    cross_refs: list[str] = []
+    sheet_names = set(ws.title for ws in wb.worksheets)
+
+    for ws in wb.worksheets:
+        for row in ws.iter_rows():
+            for cell in row:
+                if isinstance(cell.value, str) and cell.value.startswith("="):
+                    # Look for references to other sheets (e.g., Sheet2!A1)
+                    for other_sheet in sheet_names:
+                        if other_sheet == ws.title:
+                            continue
+                        # Match both 'SheetName!Cell' and "'Sheet Name'!Cell"
+                        patterns = [
+                            f"{other_sheet}!",
+                            f"'{other_sheet}'!",
+                        ]
+                        for pattern in patterns:
+                            if pattern in cell.value:
+                                cross_refs.append(
+                                    f"{ws.title}!{cell.coordinate} → "
+                                    f"{other_sheet} (formula: {cell.value})"
+                                )
+                                break
+
+    return cross_refs

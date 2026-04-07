@@ -1,0 +1,31 @@
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.eggs/
+.pytest_cache/
+
+# Evaluation results (regeneratable)
+results/
+
+# Config with API keys
+eval_config.yaml
+
+# Large binary files in examples
+examples/*/input/*.xlsx
+examples/*/input/*.xls
+examples/*/input/*.docx
+examples/*/input/*.pdf
+examples/*/output/*.xlsx
+examples/*/output/*.xls
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/

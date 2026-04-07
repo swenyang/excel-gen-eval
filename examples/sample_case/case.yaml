@@ -1,0 +1,26 @@
+id: sample-quarterly-sales
+description: "Evaluate an AI-generated quarterly sales analysis report"
+
+prompt: |
+  Based on the provided sales data, create a comprehensive quarterly
+  sales analysis report for 2025. Include:
+  - Summary sheet with total revenue, units sold, and average price per quarter
+  - Quarterly breakdown with month-by-month details
+  - Top 5 products by revenue
+  - A chart showing revenue trends across quarters
+  - Year-over-year comparison if applicable
+
+input_files:
+  - path: input/sales_data.csv
+    description: "Raw monthly sales data for 2025"
+
+output_files:
+  - path: output/report.xlsx
+
+metadata:
+  category: financial_reporting
+  difficulty: medium
+  expected_sheets: ["Summary", "Q1", "Q2", "Q3", "Q4", "Top Products", "Charts"]
+
+skip_dimensions: []
+# scenario: reporting_analysis  # Optional override; auto-detected if omitted
