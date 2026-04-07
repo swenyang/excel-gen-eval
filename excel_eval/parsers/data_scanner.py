@@ -115,23 +115,46 @@ def scan_generated_excel(
                     f"{f.sheet}!{f.cell}: {f.formula} → {f.computed_value}"
                 )
 
-    # Compare with source data if available
-    source_df: pd.DataFrame | None = None
+    # Compare with source data — match multiple sheets when possible
+    comparisons: list[DataComparisonReport] = []
 
-    # Prefer structured DataFrames from source Excel files
-    if source_dataframes:
-        # Use the largest source sheet
-        largest_src = max(source_dataframes.items(), key=lambda x: len(x[1]))
-        source_df = largest_src[1]
-    elif source_text:
+    if source_dataframes and generated_csv_texts:
+        gen_dfs: dict[str, pd.DataFrame] = {}
+        for name, csv_text in generated_csv_texts.items():
+            df = _try_parse_as_dataframe(csv_text)
+            if df is not None and len(df) > 0:
+                gen_dfs[name] = df
+
+        used_gen: set[str] = set()
+        for src_name, src_df in source_dataframes.items():
+            if len(src_df) == 0:
+                continue
+            best_name, best_score = None, 0.0
+            for gen_name, gen_df in gen_dfs.items():
+                if gen_name in used_gen:
+                    continue
+                name_sim = SequenceMatcher(None, src_name.lower(), gen_name.lower()).ratio()
+                col_overlap = len(set(str(c) for c in src_df.columns) & set(str(c) for c in gen_df.columns))
+                col_total = max(len(set(str(c) for c in src_df.columns) | set(str(c) for c in gen_df.columns)), 1)
+                score = name_sim * 0.4 + (col_overlap / col_total) * 0.6
+                if score > best_score:
+                    best_score = score
+                    best_name = gen_name
+            if best_name and best_score >= 0.3:
+                used_gen.add(best_name)
+                comp = _compare_dataframes(src_df, gen_dfs[best_name])
+                comp.summary = f"[{src_name} → {best_name}] {comp.summary}"
+                comparisons.append(comp)
+    elif source_text and generated_csv_texts:
         source_df = _try_parse_as_dataframe(source_text)
+        if source_df is not None:
+            largest_sheet = max(generated_csv_texts.items(), key=lambda x: len(x[1]))
+            gen_df = _try_parse_as_dataframe(largest_sheet[1])
+            if gen_df is not None:
+                comparisons.append(_compare_dataframes(source_df, gen_df))
 
-    if source_df is not None and generated_csv_texts:
-        # Use the largest generated sheet for comparison
-        largest_sheet = max(generated_csv_texts.items(), key=lambda x: len(x[1]))
-        gen_df = _try_parse_as_dataframe(largest_sheet[1])
-        if gen_df is not None:
-            report.data_comparison = _compare_dataframes(source_df, gen_df)
+    if comparisons:
+        report.data_comparison = comparisons[0]
 
     return report
 

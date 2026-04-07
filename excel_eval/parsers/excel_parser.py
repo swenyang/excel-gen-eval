@@ -220,29 +220,64 @@ def _extract_formatting(wb: openpyxl.Workbook) -> FormatInfo:
 
 
 def _extract_cross_sheet_refs(wb: openpyxl.Workbook) -> list[str]:
-    """Find formulas that reference other sheets."""
+    """Find formulas that reference other sheets.
+
+    Detects:
+    - Direct references: Sheet2!A1, 'Sheet Name'!A1
+    - Defined names that span sheets
+    - INDIRECT() references (flagged as potential cross-sheet)
+    """
     cross_refs: list[str] = []
     sheet_names = set(ws.title for ws in wb.worksheets)
 
+    # Check defined names for cross-sheet scope
+    if wb.defined_names:
+        for name in wb.defined_names.definedName:
+            try:
+                destinations = list(name.destinations)
+                if len(destinations) > 1:
+                    sheets_involved = [d[0] for d in destinations]
+                    cross_refs.append(
+                        f"Defined name '{name.name}' spans sheets: {', '.join(sheets_involved)}"
+                    )
+                elif destinations and name.attr_text and "!" in name.attr_text:
+                    cross_refs.append(
+                        f"Defined name '{name.name}' → {name.attr_text}"
+                    )
+            except Exception:
+                pass
+
+    # Check formulas for direct sheet references
+    seen = set()  # Deduplicate (only track unique source→target pairs)
     for ws in wb.worksheets:
         for row in ws.iter_rows():
             for cell in row:
-                if isinstance(cell.value, str) and cell.value.startswith("="):
-                    # Look for references to other sheets (e.g., Sheet2!A1)
-                    for other_sheet in sheet_names:
-                        if other_sheet == ws.title:
-                            continue
-                        # Match both 'SheetName!Cell' and "'Sheet Name'!Cell"
-                        patterns = [
-                            f"{other_sheet}!",
-                            f"'{other_sheet}'!",
-                        ]
-                        for pattern in patterns:
-                            if pattern in cell.value:
+                if not isinstance(cell.value, str) or not cell.value.startswith("="):
+                    continue
+                formula = cell.value
+
+                for other_sheet in sheet_names:
+                    if other_sheet == ws.title:
+                        continue
+                    # Match: SheetName!Cell, 'Sheet Name'!Cell
+                    patterns = [f"{other_sheet}!", f"'{other_sheet}'!"]
+                    for pattern in patterns:
+                        if pattern in formula:
+                            pair = (ws.title, other_sheet)
+                            if pair not in seen:
+                                seen.add(pair)
                                 cross_refs.append(
-                                    f"{ws.title}!{cell.coordinate} → "
-                                    f"{other_sheet} (formula: {cell.value})"
+                                    f"{ws.title} → {other_sheet} "
+                                    f"(e.g., {cell.coordinate}: {formula[:80]})"
                                 )
-                                break
+                            break
+
+                # Flag INDIRECT as potential cross-sheet
+                if "INDIRECT(" in formula.upper() and (ws.title, "_INDIRECT") not in seen:
+                    seen.add((ws.title, "_INDIRECT"))
+                    cross_refs.append(
+                        f"{ws.title}!{cell.coordinate} uses INDIRECT() "
+                        f"(potential cross-sheet: {formula[:80]})"
+                    )
 
     return cross_refs
