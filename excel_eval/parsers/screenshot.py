@@ -156,15 +156,13 @@ def _generate_via_pdf(
 def _pdf_to_pngs(pdf_path: Path, sheet_names: list[str]) -> dict[str, bytes]:
     """Convert PDF pages to PNG images.
 
-    Caps at max 20 pages to avoid API limits on workbooks with many print pages.
     Maps pages to sheet names (best-effort: 1 page per sheet assumption).
     """
-    MAX_PAGES = 20
 
     try:
         from pdf2image import convert_from_path
         poppler_path = _find_poppler()
-        kwargs = {"dpi": 150, "last_page": MAX_PAGES}
+        kwargs = {"dpi": 150}
         if poppler_path:
             kwargs["poppler_path"] = poppler_path
         images = convert_from_path(str(pdf_path), **kwargs)
@@ -175,8 +173,6 @@ def _pdf_to_pngs(pdf_path: Path, sheet_names: list[str]) -> dict[str, bytes]:
             buf = io.BytesIO()
             img.save(buf, format="PNG")
             result[name] = buf.getvalue()
-        if len(images) >= MAX_PAGES:
-            logger.info("PDF had %d+ pages, capped at %d screenshots", MAX_PAGES, MAX_PAGES)
         return result
     except ImportError:
         pass
