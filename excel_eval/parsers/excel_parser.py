@@ -231,8 +231,11 @@ def _extract_cross_sheet_refs(wb: openpyxl.Workbook) -> list[str]:
     sheet_names = set(ws.title for ws in wb.worksheets)
 
     # Check defined names for cross-sheet scope
-    if wb.defined_names:
-        for name in wb.defined_names.definedName:
+    try:
+        defined = wb.defined_names
+        # openpyxl versions differ: try .definedName, then iterate directly
+        names_iter = getattr(defined, 'definedName', None) or defined.values()
+        for name in names_iter:
             try:
                 destinations = list(name.destinations)
                 if len(destinations) > 1:
@@ -246,6 +249,8 @@ def _extract_cross_sheet_refs(wb: openpyxl.Workbook) -> list[str]:
                     )
             except Exception:
                 pass
+    except Exception:
+        pass
 
     # Check formulas for direct sheet references
     seen = set()  # Deduplicate (only track unique source→target pairs)
