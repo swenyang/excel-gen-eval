@@ -100,9 +100,6 @@ class Pipeline:
             case_config, prepared, scenario, dim_results
         )
 
-        # Stage 4: Translate feedback/evidence to Chinese
-        await self._translate_to_chinese(result)
-
         logger.info(
             "Case %s complete: overall=%.2f (%s)",
             case_config.id,
@@ -386,73 +383,6 @@ class Pipeline:
             merged[dim_name] = best
 
         return merged
-
-    async def _translate_to_chinese(self, result: EvalResult) -> None:
-        """Translate all feedback/evidence/prompt to Chinese in one batch LLM call."""
-        import json as _json
-
-        # Collect all text to translate
-        items = []
-
-        # Include the user prompt
-        if result.prompt:
-            items.append({"dim": "_prompt", "type": "prompt", "text": result.prompt})
-
-        for dim_name, dr in result.dimensions.items():
-            if dr.feedback:
-                items.append({"dim": dim_name, "type": "feedback", "text": dr.feedback})
-            for i, ev in enumerate(dr.evidence):
-                items.append({"dim": dim_name, "type": "evidence", "idx": i, "text": ev})
-
-        if not items:
-            return
-
-        # Build batch translation prompt
-        numbered = "\n".join(f"{i+1}. {item['text']}" for i, item in enumerate(items))
-
-        prompt = (
-            "将以下 Excel 评估报告的内容翻译为中文。保留技术术语（如 VERIFIED、INFERRED、UNCONFIRMED、N/A、Sheet、Excel 等）不翻译。"
-            "保留 +/- 前缀标签。翻译要专业准确。\n\n"
-            "返回 JSON 数组，每项对应一条翻译：\n"
-            '```json\n["翻译1", "翻译2", ...]\n```\n\n'
-            f"待翻译内容（共 {len(items)} 条）：\n{numbered}"
-        )
-
-        try:
-            response = await self.llm_client.complete_with_retry(
-                [{"role": "user", "content": prompt}],
-                json_mode=True,
-            )
-
-            import re
-            match = re.search(r"\[.*\]", response.content, re.DOTALL)
-            if not match:
-                logger.warning("Translation response not parseable")
-                return
-
-            translations = _json.loads(match.group())
-            if len(translations) != len(items):
-                logger.warning("Translation count mismatch: %d vs %d", len(translations), len(items))
-                return
-
-            # Apply translations
-            for item, zh in zip(items, translations):
-                if item["type"] == "prompt":
-                    result.prompt_zh = zh
-                elif item["type"] == "feedback":
-                    dr = result.dimensions[item["dim"]]
-                    dr.feedback_zh = zh
-                elif item["type"] == "evidence":
-                    dr = result.dimensions[item["dim"]]
-                    idx = item["idx"]
-                    while len(dr.evidence_zh) <= idx:
-                        dr.evidence_zh.append("")
-                    dr.evidence_zh[idx] = zh
-
-            logger.info("Translated %d items to Chinese", len(translations))
-
-        except Exception as exc:
-            logger.warning("Translation failed: %s", exc)
 
     @staticmethod
     def _apply_consistency_checks(

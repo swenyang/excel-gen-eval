@@ -106,15 +106,24 @@ class BaseEvaluator(abc.ABC):
                 {"role": "user", "content": user_content},
             ]
 
-            # Collect images for visual evaluators — send ALL sheets, downscaled
+            # Collect images for visual evaluators — downscaled, capped at API limit
             images: list[bytes] | None = None
+            MAX_IMAGES = 20  # Anthropic limit is 600 tiles; 20 images × ~2 tiles = ~40 tiles
             screenshot_note = ""
             if self.needs_screenshots():
                 if data.screenshots:
+                    all_shots = list(data.screenshots.values())
+                    to_send = all_shots[:MAX_IMAGES]
                     images = [
                         _downscale_image(img_bytes, max_width=800)
-                        for img_bytes in data.screenshots.values()
+                        for img_bytes in to_send
                     ]
+                    if len(all_shots) > MAX_IMAGES:
+                        screenshot_note = (
+                            f"\n\n**Note:** {len(all_shots)} sheet screenshots available, "
+                            f"showing first {MAX_IMAGES} to stay within API limits.\n"
+                        )
+                        messages[-1]["content"] += screenshot_note
                 else:
                     screenshot_note = (
                         "\n\n**Note:** Screenshots were requested but are "

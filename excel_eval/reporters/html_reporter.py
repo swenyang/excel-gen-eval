@@ -650,7 +650,6 @@ _HTML_TEMPLATE = r"""<!DOCTYPE html>
       <h1>Excel Gen Eval Report</h1>
       <div class="header-meta">Generated {{ timestamp }} &bull; {{ results | length }} case{{ "s" if results | length != 1 else "" }}</div>
     </div>
-    <button id="lang-toggle" class="lang-btn" onclick="toggleLang()">English</button>
   </div>
 
   <!-- ═══════════════════════════════════════════════════════════
@@ -662,6 +661,7 @@ _HTML_TEMPLATE = r"""<!DOCTYPE html>
       <table class="summary-table">
         <thead>
           <tr>
+            <th rowspan="2" style="text-align:center;width:30px;">#</th>
             <th rowspan="2" style="text-align:left;">Case ID</th>
             <th rowspan="2" style="text-align:left;">Scenario</th>
             <th colspan="4" class="block-header">Data &amp; Content</th>
@@ -678,6 +678,7 @@ _HTML_TEMPLATE = r"""<!DOCTYPE html>
           {% for r in results %}
           {% set blended_w = get_blended_weights(r.scenario) %}
           <tr>
+            <td style="text-align:center;color:var(--color-fg-muted);">{{ loop.index }}</td>
             <td><a class="case-link" href="javascript:void(0)" onclick="showCase({{ loop.index0 }})">{{ r.case_id }}</a></td>
             <td>
               <button class="scenario-btn" type="button"
@@ -881,8 +882,7 @@ _HTML_TEMPLATE = r"""<!DOCTYPE html>
         {# ── Prompt ──────────────────────────────────────── #}
         {% if r.prompt %}
         <div class="section-title">Prompt</div>
-        <div class="prompt-block lang-zh">{{ r.prompt_zh or r.prompt }}</div>
-        <div class="prompt-block lang-en view-hidden">{{ r.prompt }}</div>
+        <div class="prompt-block">{{ r.prompt }}</div>
         {% endif %}
 
         {# ── Files ───────────────────────────────────────── #}
@@ -951,18 +951,12 @@ _HTML_TEMPLATE = r"""<!DOCTYPE html>
           <div class="detail-body">
             {% if dr %}
               {% if dr.feedback %}
-              <div class="lang-zh">{{ highlight_feedback(dr.feedback_zh or dr.feedback) }}</div>
-              <div class="lang-en view-hidden">{{ highlight_feedback(dr.feedback) }}</div>
+              {% if dr.feedback %}{{ highlight_feedback(dr.feedback) }}{% endif %}
               {% endif %}
               {% if dr.evidence %}
               <p style="font-size:12px;font-weight:600;color:var(--color-fg-muted);margin:12px 0 4px;">Key Findings</p>
               <ul class="evidence-list">
-                {% for ev in dr.evidence %}
-                <li>
-                  <span class="lang-zh">{{ highlight_evidence(dr.evidence_zh[loop.index0] if dr.evidence_zh and loop.index0 < dr.evidence_zh|length else ev) }}</span>
-                  <span class="lang-en view-hidden">{{ highlight_evidence(ev) }}</span>
-                </li>
-                {% endfor %}
+                {% for ev in dr.evidence %}<li>{{ highlight_evidence(ev) }}</li>{% endfor %}
               </ul>
               {% endif %}
               {% if dr.error_message %}<p style="color:var(--color-red)">Error: {{ dr.error_message }}</p>{% endif %}
@@ -1007,26 +1001,6 @@ _HTML_TEMPLATE = r"""<!DOCTYPE html>
   // Expose globally
   window.showCase = showCase;
   window.showSummary = showSummary;
-
-  // Language toggle
-  var currentLang = 'zh';
-  function toggleLang() {
-    var btn = document.getElementById('lang-toggle');
-    var zhEls = document.querySelectorAll('.lang-zh');
-    var enEls = document.querySelectorAll('.lang-en');
-    if (currentLang === 'zh') {
-      zhEls.forEach(function(el) { el.classList.add('view-hidden'); });
-      enEls.forEach(function(el) { el.classList.remove('view-hidden'); });
-      btn.textContent = '中文';
-      currentLang = 'en';
-    } else {
-      enEls.forEach(function(el) { el.classList.add('view-hidden'); });
-      zhEls.forEach(function(el) { el.classList.remove('view-hidden'); });
-      btn.textContent = 'English';
-      currentLang = 'zh';
-    }
-  }
-  window.toggleLang = toggleLang;
 })();
 </script>
 </body>
