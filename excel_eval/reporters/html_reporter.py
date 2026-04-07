@@ -250,6 +250,16 @@ _HTML_TEMPLATE = r"""<!DOCTYPE html>
   }
   .header h1 { margin: 0; font-size: 24px; font-weight: 600; }
   .header-meta { color: var(--color-fg-muted); font-size: 13px; }
+  .lang-btn {
+    background: var(--color-bg-subtle);
+    border: 1px solid var(--color-border);
+    border-radius: 20px;
+    padding: 4px 14px;
+    font-size: 12px;
+    cursor: pointer;
+    font-weight: 500;
+  }
+  .lang-btn:hover { background: #e8e8e8; }
 
   /* Back link */
   .back-link {
@@ -640,6 +650,7 @@ _HTML_TEMPLATE = r"""<!DOCTYPE html>
       <h1>Excel Gen Eval Report</h1>
       <div class="header-meta">Generated {{ timestamp }} &bull; {{ results | length }} case{{ "s" if results | length != 1 else "" }}</div>
     </div>
+    <button id="lang-toggle" class="lang-btn" onclick="toggleLang()">English</button>
   </div>
 
   <!-- ═══════════════════════════════════════════════════════════
@@ -870,7 +881,8 @@ _HTML_TEMPLATE = r"""<!DOCTYPE html>
         {# ── Prompt ──────────────────────────────────────── #}
         {% if r.prompt %}
         <div class="section-title">Prompt</div>
-        <div class="prompt-block">{{ r.prompt }}</div>
+        <div class="prompt-block lang-zh">{{ r.prompt_zh or r.prompt }}</div>
+        <div class="prompt-block lang-en view-hidden">{{ r.prompt }}</div>
         {% endif %}
 
         {# ── Files ───────────────────────────────────────── #}
@@ -938,11 +950,19 @@ _HTML_TEMPLATE = r"""<!DOCTYPE html>
           </summary>
           <div class="detail-body">
             {% if dr %}
-              {% if dr.feedback %}{{ highlight_feedback(dr.feedback) }}{% endif %}
+              {% if dr.feedback %}
+              <div class="lang-zh">{{ highlight_feedback(dr.feedback_zh or dr.feedback) }}</div>
+              <div class="lang-en view-hidden">{{ highlight_feedback(dr.feedback) }}</div>
+              {% endif %}
               {% if dr.evidence %}
               <p style="font-size:12px;font-weight:600;color:var(--color-fg-muted);margin:12px 0 4px;">Key Findings</p>
               <ul class="evidence-list">
-                {% for ev in dr.evidence %}<li>{{ highlight_evidence(ev) }}</li>{% endfor %}
+                {% for ev in dr.evidence %}
+                <li>
+                  <span class="lang-zh">{{ highlight_evidence(dr.evidence_zh[loop.index0] if dr.evidence_zh and loop.index0 < dr.evidence_zh|length else ev) }}</span>
+                  <span class="lang-en view-hidden">{{ highlight_evidence(ev) }}</span>
+                </li>
+                {% endfor %}
               </ul>
               {% endif %}
               {% if dr.error_message %}<p style="color:var(--color-red)">Error: {{ dr.error_message }}</p>{% endif %}
@@ -987,6 +1007,26 @@ _HTML_TEMPLATE = r"""<!DOCTYPE html>
   // Expose globally
   window.showCase = showCase;
   window.showSummary = showSummary;
+
+  // Language toggle
+  var currentLang = 'zh';
+  function toggleLang() {
+    var btn = document.getElementById('lang-toggle');
+    var zhEls = document.querySelectorAll('.lang-zh');
+    var enEls = document.querySelectorAll('.lang-en');
+    if (currentLang === 'zh') {
+      zhEls.forEach(function(el) { el.classList.add('view-hidden'); });
+      enEls.forEach(function(el) { el.classList.remove('view-hidden'); });
+      btn.textContent = '中文';
+      currentLang = 'en';
+    } else {
+      enEls.forEach(function(el) { el.classList.add('view-hidden'); });
+      zhEls.forEach(function(el) { el.classList.remove('view-hidden'); });
+      btn.textContent = 'English';
+      currentLang = 'zh';
+    }
+  }
+  window.toggleLang = toggleLang;
 })();
 </script>
 </body>

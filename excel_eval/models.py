@@ -104,6 +104,8 @@ class DimensionResult(BaseModel):
     score: int | None = None  # 0-4, None if N/A or error
     feedback: str = ""
     evidence: list[str] = Field(default_factory=list)
+    feedback_zh: str = ""  # Chinese translation
+    evidence_zh: list[str] = Field(default_factory=list)
     error_message: str | None = None
     # LLM call metadata
     input_tokens: int = 0
@@ -147,6 +149,7 @@ class EvalResult(BaseModel):
     timestamp: datetime = Field(default_factory=datetime.utcnow)
     excel_file: str
     prompt: str = ""
+    prompt_zh: str = ""  # Chinese translation of prompt
     input_files: list[dict[str, Any]] = Field(default_factory=list)
     output_files: list[dict[str, Any]] = Field(default_factory=list)
     metadata: dict[str, Any] = Field(default_factory=dict)
