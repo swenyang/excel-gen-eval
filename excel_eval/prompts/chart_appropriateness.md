@@ -19,7 +19,14 @@ You are an expert Excel evaluator. Your task is to assess the **chart quality an
 
 ## N/A Condition
 
-If no charts are present **and** none were requested or contextually expected, respond with `"score": null`.
+Score N/A (`null`) ONLY if:
+- No charts are present in the workbook, AND
+- The user prompt does NOT request charts/visualizations, AND
+- The scenario does NOT contextually expect charts (e.g., a form template, a data dump)
+
+**Do NOT score N/A if**:
+- The user explicitly requested charts/visualizations but none exist → Score **0** (charts required but missing)
+- The scenario strongly expects charts (e.g., reporting/analysis with trend data) and none exist → Score **0-1**
 
 ## Evaluation Guidelines
 

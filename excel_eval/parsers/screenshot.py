@@ -156,13 +156,17 @@ def _generate_via_pdf(
 def _pdf_to_pngs(pdf_path: Path, sheet_names: list[str]) -> dict[str, bytes]:
     """Convert PDF pages to PNG images.
 
-    Maps pages to sheet names (best-effort: 1 page per sheet assumption).
+    Limits conversion to a sensible number of pages. Wide Excel sheets can
+    generate hundreds of print pages in a PDF — we take enough to cover
+    each sheet's first page but cap total to avoid excessive processing.
     """
+    # Heuristic: at most 3 pages per sheet (cover page + 2 overflow), max 50 total
+    max_pages = min(max(len(sheet_names) * 3, 10), 50)
 
     try:
         from pdf2image import convert_from_path
         poppler_path = _find_poppler()
-        kwargs = {"dpi": 150}
+        kwargs = {"dpi": 150, "last_page": max_pages}
         if poppler_path:
             kwargs["poppler_path"] = poppler_path
         images = convert_from_path(str(pdf_path), **kwargs)
