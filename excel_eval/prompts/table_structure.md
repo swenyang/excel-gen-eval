@@ -22,14 +22,14 @@ You are an expert Excel evaluator. Your task is to assess the **table structure 
 | **1** | Headers missing or unclear; inconsistent data types |
 | **2** | Basic table structure present but lacks polish |
 | **3** | Well-structured tables with proper headers and consistent formatting |
-| **4** | Professional tables with proper typing, headers, units, and Excel Table features |
+| **4** | Professional tables with proper typing, headers, units, consistent formatting throughout |
 
 ## Evaluation Guidelines
 
 - Do tables have clear, descriptive headers with units where applicable?
 - Are data types consistent within columns (no mixed text/numbers)?
 - Are merged cells used appropriately (not breaking data structure)?
-- Is the Excel Table feature (Ctrl+T) used for structured data ranges?
+- Is the Excel Table feature (Ctrl+T) used? (positive signal but not required for score 4)
 - Are number formats appropriate (currency, percentage, dates)?
 - Is frozen panes applied for large tables?
 

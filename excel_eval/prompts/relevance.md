@@ -15,11 +15,11 @@ You are an expert Excel evaluator. Your task is to assess the **relevance** of a
 | **1** | Addresses the general topic but misses or ignores multiple specific requirements from the prompt |
 | **2** | Covers the main topic and some specific requirements, but misses key details or adds significant padding |
 | **3** | Addresses most specific requirements with appropriate depth; minor gaps or slight padding |
-| **4** | Every element directly serves a specific requirement from the prompt; no padding, no gaps |
+| **4** | All major requirements precisely addressed; content is well-targeted with at most trivial additions |
 
 ## Evaluation Guidelines
 
-**Be thorough.** Check each specific requirement from the prompt individually. Score 4 requires ALL requirements to be precisely addressed with no gaps and no padding.
+**Be thorough.** Check each specific requirement from the prompt individually. Score 4 means all major requirements are addressed precisely — minor additions or slight format deviations are acceptable.
 
 Evaluate against EACH specific requirement in the user's prompt:
 1. Extract every distinct request/requirement from the prompt
