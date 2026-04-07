@@ -33,7 +33,17 @@ You are an expert Excel evaluator. Your task is to assess the **formula usage an
 
 ## N/A Condition
 
-If the workbook contains **zero formulas** and the task was a pure data dump with no calculations expected, respond:
+Score N/A (`null`) ONLY if:
+- The workbook contains zero formulas, AND
+- The task genuinely requires no calculations (e.g., a pure contact list, static reference table)
+
+**Do NOT score N/A if** the task involves any calculations, totals, aggregations, or derived values — even if the workbook has zero formulas. In that case, score 0-1 because formulas SHOULD have been used but weren't (hardcoded values instead).
+
+Examples:
+- Intern schedule with no formulas → N/A (no calculations expected)
+- Budget tracker with hardcoded totals → Score 0-1 (SUM formulas expected)
+- Template form with hardcoded TOTAL row → Score 1 (formulas expected for totals)
+
 ```json
 {
   "score": null,

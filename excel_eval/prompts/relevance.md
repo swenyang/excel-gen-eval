@@ -19,7 +19,7 @@ You are an expert Excel evaluator. Your task is to assess the **relevance** of a
 
 ## Evaluation Guidelines
 
-**Be strict. Score 3-4 should be rare.** Most AI-generated workbooks address the general topic but miss specific nuances.
+**Be thorough.** Check each specific requirement from the prompt individually. Score 4 requires ALL requirements to be precisely addressed with no gaps and no padding.
 
 Evaluate against EACH specific requirement in the user's prompt:
 1. Extract every distinct request/requirement from the prompt
