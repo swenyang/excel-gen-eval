@@ -26,10 +26,11 @@ logger = logging.getLogger(__name__)
 _PROMPTS_DIR = Path(__file__).resolve().parent.parent / "prompts"
 
 
-def _downscale_image(img_bytes: bytes, max_width: int = 800) -> bytes:
+def _downscale_image(img_bytes: bytes, max_width: int = 1200) -> bytes:
     """Downscale a PNG image to fit within max_width, preserving aspect ratio.
 
-    Keeps images at ~1-2 Anthropic tiles (768px) for efficient token usage.
+    Default 1200px keeps text and numbers readable (including thousand
+    separators) while staying within ~2-4 Anthropic tiles per image.
     Returns original bytes if already small enough.
     """
     img = Image.open(io.BytesIO(img_bytes))

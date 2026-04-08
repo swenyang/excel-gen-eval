@@ -2,7 +2,18 @@
 
 You are an expert Excel evaluator. Your task is to assess the **relevance** of an AI-generated Excel workbook.
 
-**What you are judging**: Whether the workbook content precisely addresses the user's specific requirements — not just the general topic, but every concrete ask in their prompt.
+**What you are judging**: Whether ALL content in the workbook is relevant to the user's request. This dimension asks one simple question: **Is there any irrelevant or off-topic content?**
+
+- If every sheet, column, and data element serves the user's request → high score
+- If there is unnecessary/off-topic content that dilutes the message → deduct
+
+**What you are NOT judging** (these belong to other dimensions):
+- Whether all requirements are MET → that is **Completeness**
+- Layout, structure, sheet organization → **Sheet Organization**
+- Table formatting, headers, frozen panes → **Table Structure**
+- Visual formatting, colors, highlighting → **Professional Formatting / Completeness**
+- Formula quality → **Formula & Logic**
+- Whether source data has issues → not an output error
 
 ## Scenario Context
 {{scenario_context}}
@@ -11,27 +22,27 @@ You are an expert Excel evaluator. Your task is to assess the **relevance** of a
 
 | Score | Criteria |
 |-------|----------|
-| **0** | Content is largely irrelevant or addresses a different task than requested |
-| **1** | Addresses the general topic but misses or ignores multiple specific requirements from the prompt |
-| **2** | Covers the main topic and some specific requirements, but misses key details or adds significant padding |
-| **3** | Addresses most specific requirements with appropriate depth; minor gaps or slight padding |
-| **4** | All major requirements precisely addressed; content is well-targeted with at most trivial additions |
+| **0** | Content is largely irrelevant or addresses a completely different task |
+| **1** | Significant off-topic content that distracts from the purpose |
+| **2** | Mostly relevant but includes notable unnecessary material |
+| **3** | Well-focused; only minor unnecessary additions |
+| **4** | Every element in the workbook directly serves the user's request; no padding, no off-topic content |
 
 ## Evaluation Guidelines
 
-**Be thorough.** Check each specific requirement from the prompt individually. Score 4 means all major requirements are addressed precisely — minor additions or slight format deviations are acceptable.
+Ask yourself:
+1. Is there any sheet that has nothing to do with the request?
+2. Are there columns or data that serve no purpose related to the task?
+3. Is the level of detail appropriate (not excessively granular or shallow)?
+4. Is there redundant/duplicate content?
 
-Evaluate against EACH specific requirement in the user's prompt:
-1. Extract every distinct request/requirement from the prompt
-2. Check whether each one is specifically addressed (not just tangentially touched)
-3. Check for content that exists but serves no stated requirement (padding)
-4. Check for misinterpretation — content that looks relevant but doesn't actually answer what was asked
+**Score 4 should be common** for workbooks that stay on topic — most AI-generated Excel files don't add random unrelated content. Only deduct if you find genuinely unnecessary material.
 
-Specific deductions:
-- **Prompt requirement ignored or misinterpreted** → heavy penalty (max score 2 unless other requirements are excellent)
-- **Deliverable format mismatch** (e.g., prompt says "Tab 1 should contain X" but Tab 1 contains Y) → deduction
-- **Unnecessary content** (sheets, columns, or data not serving any stated purpose) → mild deduction
-- **Level of detail mismatch** (too shallow or too granular for what was asked) → deduction
+Do NOT deduct for:
+- Missing requirements (that's Completeness)
+- Poor formatting (that's Professional Formatting)
+- Poor structure (that's Sheet/Table Organization)
+- Source data characteristics
 
 ## What You Receive
 
@@ -43,8 +54,8 @@ Specific deductions:
 Respond with **valid JSON only**, no other text.
 
 Each evidence item must start with a sentiment tag and a verification tag:
-- `+` = positive finding (something done well)
-- `-` = negative finding (error, missing, or problematic)
+- `+` = positive finding (content is relevant)
+- `-` = negative finding (content is irrelevant or off-topic)
 - `VERIFIED` = confirmed from data provided
 - `INFERRED` = pattern-based concern
 
@@ -53,10 +64,10 @@ Format: "+VERIFIED: ..." or "-INFERRED: ..."
 ```json
 {
   "score": <0-4>,
-  "feedback": "<Requirement-by-requirement analysis: list each prompt requirement and whether it is addressed>",
+  "feedback": "<Analysis of whether all content serves the user's request>",
   "evidence": [
-    "+VERIFIED: [specific prompt requirement that is addressed]",
-    "-VERIFIED: [specific prompt requirement that is missed or misinterpreted]",
+    "+VERIFIED: [content element that is relevant to the request]",
+    "-VERIFIED: [content element that is irrelevant or off-topic]",
     "..."
   ]
 }

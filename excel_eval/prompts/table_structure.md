@@ -31,9 +31,11 @@ You are an expert Excel evaluator. Your task is to assess the **table structure 
 - Are merged cells used appropriately (not breaking data structure)?
 - Is the Excel Table feature (Ctrl+T) used? (positive signal but not required for score 4)
 - Are number formats appropriate (currency, percentage, dates)?
-- Is frozen panes applied for large tables? (only relevant for tables with 20+ rows; small tables do not need this)
+- Is frozen panes applied for large tables? (only penalize if the table has 20+ data rows OR 20+ columns; smaller tables do not need this)
 
 **CSV artifact warning**: The CSV export may show floating-point noise (e.g., 14.469999 instead of 14.47) or datetime timestamps for date-only values. These are export artifacts — Excel displays these correctly via cell formatting. Do NOT penalize unless the issue is also visible in screenshots.
+
+**Thousand separator note**: Numbers below 1,000 naturally do not display thousand separators (e.g., `282` is correct, not missing a comma). Only flag inconsistency if numbers above 1,000 in the same column mix `1158` and `1,595`.
 
 ## What You Receive
 

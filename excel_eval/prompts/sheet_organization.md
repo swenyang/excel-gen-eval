@@ -20,11 +20,19 @@ You are an expert Excel evaluator. Your task is to assess the **sheet organizati
 |-------|----------|
 | **0** | No logical organization; confusing or broken sheet structure |
 | **1** | Poor naming or ordering; difficult to navigate |
-| **2** | Functional but generic naming; basic organization |
+| **2** | Single sheet for a multi-section task, but sections are clearly separated and labeled |
 | **3** | Well-organized with clear naming and logical flow |
 | **4** | Expertly structured; intuitive navigation, perfect sheet decomposition |
 
-## N/A Condition
+**Important scoring rule for single-sheet workbooks**:
+- A single sheet with **clearly separated, well-labeled sections** (e.g., analysis table + summary table + legend) → score **2** minimum, not 1
+- Score **1** is reserved for genuinely confusing or disorganized structures (no clear sections, no labels, data jumbled together)
+- Just because the task *describes* multiple input sources does NOT mean the output must have multiple sheets. Consolidating inputs into one well-organized analysis sheet is a valid approach — evaluate the clarity of the result, not whether it mirrors the input structure
+
+**Scoring examples for single-sheet workbooks**:
+- Single sheet named "Sheet1", no sections, all data dumped together → **Score 0-1**
+- Single sheet with descriptive name, data clearly divided into labeled sections (e.g., "Analysis" table, "Summary" table, "Key" legend), each visually separated → **Score 2**
+- Single sheet but the task genuinely needed separation (e.g., 500+ row data + pivot + dashboard all crammed in) → **Score 1**
 
 ## N/A Condition
 
@@ -32,7 +40,7 @@ Score N/A (`null`) ONLY if:
 - The workbook has a single sheet, AND
 - The task genuinely fits a single sheet (e.g., a simple list, one small table, a single form)
 
-**Do NOT score N/A if** the task involves multiple logical sections that would benefit from separate sheets. In that case, score 0-2 for poor organization because sheets SHOULD have been separated. Examples:
+**Do NOT score N/A if** the task involves multiple logical sections that would benefit from separate sheets. In that case, score 1-2 for suboptimal organization. Examples:
 - Dashboard + raw data in one sheet → Score 1-2 (should be separated)
 - Report summary + detail tables in one sheet → Score 1-2
 - Simple contact list in one sheet → N/A (single sheet is appropriate)
@@ -43,6 +51,7 @@ Score N/A (`null`) ONLY if:
 - Is the sheet order intuitive (e.g., summary before details, chronological order)?
 - Is the number of sheets appropriate (not too few, not over-fragmented)?
 - Are cross-sheet references correct and traceable?
+- **Do NOT require source/input data tabs to be preserved in the output.** AI agents create new workbooks — they copy data from input files, not include the original files as tabs. Evaluate the output structure on its own merits.
 
 ## What You Receive
 

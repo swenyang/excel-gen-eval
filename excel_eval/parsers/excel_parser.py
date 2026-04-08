@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 import re
+from datetime import datetime
 from pathlib import Path
 
 import openpyxl
@@ -64,25 +65,33 @@ def parse_excel(
 
 
 def _extract_sheets(excel_path: Path) -> list[SheetData]:
-    """Export each sheet to CSV text with truncation for large sheets."""
+    """Export each sheet to CSV text using Excel's display format.
+
+    Reads cell number_format via openpyxl to produce values matching
+    what the user sees in Excel, avoiding CSV export artifacts like
+    datetime timestamps or floating-point noise.
+    """
+    wb_display = openpyxl.load_workbook(str(excel_path), data_only=True)
     xls = pd.ExcelFile(excel_path)
     sheets: list[SheetData] = []
 
     for sheet_name in xls.sheet_names:
-        df = pd.read_excel(xls, sheet_name=sheet_name, header=0)
-        row_count, col_count = df.shape
+        df_raw = pd.read_excel(xls, sheet_name=sheet_name, header=0)
+        row_count, col_count = df_raw.shape
+
+        # Build display-formatted DataFrame from openpyxl
+        ws = wb_display[sheet_name]
+        rows_data = []
+        headers = []
+        for row_idx, row in enumerate(ws.iter_rows(values_only=False)):
+            if row_idx == 0:
+                headers = [_display_value(cell) for cell in row]
+                continue
+            rows_data.append([_display_value(cell) for cell in row])
+
+        df = pd.DataFrame(rows_data, columns=headers) if headers else df_raw
+
         truncated = False
-
-        # Clean up floating-point display artifacts
-        # Excel stores dates as floats and numbers with limited precision,
-        # but displays them formatted. Since we lose cell formats in CSV,
-        # we round floats to avoid misleading the LLM.
-        for col in df.columns:
-            if df[col].dtype == 'float64':
-                # Round to 6 decimal places to remove IEEE 754 noise
-                # (e.g., 14.469999999999999 → 14.47)
-                df[col] = df[col].round(6)
-
         if row_count > MAX_ROWS_FULL:
             head = df.head(HEAD_ROWS)
             tail = df.tail(TAIL_ROWS)
@@ -103,7 +112,57 @@ def _extract_sheets(excel_path: Path) -> list[SheetData]:
             truncated=truncated,
         ))
 
+    wb_display.close()
     return sheets
+
+
+def _display_value(cell) -> str:
+    """Format a cell value based on its Excel number_format.
+
+    Produces the value as the user would see it in Excel, not the raw
+    underlying value.
+    """
+    val = cell.value
+    if val is None:
+        return ""
+
+    fmt = cell.number_format or "General"
+
+    # Date/time formats — detect by common Excel format tokens
+    if isinstance(val, datetime):
+        if any(tok in fmt.lower() for tok in ["h:", "hh:", "ss", "am/pm"]):
+            return val.strftime("%Y-%m-%d %H:%M:%S")
+        else:
+            return val.strftime("%Y-%m-%d")
+
+    # Numeric — format to match Excel display
+    if isinstance(val, (int, float)):
+        use_thousands = "," in fmt or "#,#" in fmt
+
+        # Determine decimal places
+        if "." in fmt:
+            decimal_part = fmt.split(".")[-1]
+            decimals = len(decimal_part.replace("0", "X").replace("#", "X").split(";")[0].rstrip(")%"))
+            decimals = min(decimals, 10)
+        elif fmt == "General":
+            decimals = 6 if isinstance(val, float) else 0
+        else:
+            decimals = 0
+
+        rounded = round(float(val), decimals)
+
+        # Format with or without thousand separators
+        if decimals == 0:
+            int_val = int(rounded)
+            if use_thousands:
+                return f"{int_val:,}"
+            return str(int_val)
+        else:
+            if use_thousands:
+                return f"{rounded:,.{decimals}f}"
+            return f"{rounded:.{decimals}f}"
+
+    return str(val)
 
 
 def _extract_formulas(

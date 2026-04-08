@@ -19,6 +19,9 @@ class CompletenessEvaluator(BaseEvaluator):
     def prompt_file(self) -> str:
         return "completeness.md"
 
+    def needs_screenshots(self) -> bool:
+        return True
+
     def build_context(self, data: PreparedData, scenario: Scenario) -> str:
         parts: list[str] = []
 

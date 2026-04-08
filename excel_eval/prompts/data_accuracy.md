@@ -25,6 +25,7 @@ You are an expert Excel evaluator. Your task is to assess the **data accuracy** 
 - Verify aggregations and summaries match the underlying detail data.
 - **Zero tolerance for hallucinated data** — any fabricated numbers = automatic score 0.
 - Be strict: assume issues exist until proven otherwise.
+- **Distinguish source data from generated errors**: If the source/input data itself contains unusual values (e.g., past dates, missing fields), and the generated Excel faithfully reproduces them, do NOT penalize data accuracy. The generated workbook should reflect the source data as-is. Only penalize when the generated output *differs from* or *misrepresents* the source.
 
 ## CRITICAL: Anti-Hallucination Rules
 

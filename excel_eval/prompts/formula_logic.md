@@ -25,6 +25,12 @@ You are an expert Excel evaluator. Your task is to assess the **formula usage an
 - **Maintainability**: Are named ranges or structured references used? Would changing one input auto-update dependent cells?
 - **Consistency**: Are similar calculations handled the same way across the workbook?
 
+**Do NOT penalize AND do NOT mention the following** — these are normal, acceptable practices. Omit them entirely from your evidence:
+- Redundant parentheses (e.g., `=((A1+B1))`) — cosmetic, does not affect results
+- Absence of IFERROR wrapping — good practice but not required
+- **Hardcoded values that originate from input/source files** — this is the #1 false positive. AI agents create NEW workbooks by copying data from input files. Any value that came from an input file (shipment dates, inventory counts, conversion ratios, delivery schedules, reference data) will naturally appear as a hardcoded value. This is CORRECT behavior. Do NOT suggest it "should use VLOOKUP" or "should reference the source tab" — the source tab does not exist in the output workbook.
+- **Hardcoded values in a summary section that duplicate calculated values from the main table** — if a summary table restates values from the analysis section, hardcoding is acceptable. Cross-referencing within the same sheet is nice-to-have but not required.
+
 ## What You Receive
 
 1. **User's original prompt** — context for expected calculations
