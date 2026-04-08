@@ -52,7 +52,7 @@ def _write_summary_sheet(wb, results, header_fmt, score_fmts, na_fmt, num_fmt):
     ws = wb.add_worksheet("Score Summary")
 
     dims = [d.value for d in DimensionName]
-    headers = ["Case ID", "Scenario"] + dims + [
+    headers = ["Case ID", "Task ID", "Scenario"] + dims + [
         "Data & Content Avg", "Structure & Usability Avg", "Overall Weighted Avg"
     ]
 
@@ -61,9 +61,11 @@ def _write_summary_sheet(wb, results, header_fmt, score_fmts, na_fmt, num_fmt):
 
     for row, result in enumerate(results, 1):
         ws.write(row, 0, result.case_id)
-        ws.write(row, 1, result.scenario.detected.value)
+        task_id = result.metadata.get("task_id", "") if result.metadata else ""
+        ws.write(row, 1, task_id)
+        ws.write(row, 2, result.scenario.detected.value)
 
-        for col, dim in enumerate(dims, 2):
+        for col, dim in enumerate(dims, 3):
             dr = result.dimensions.get(dim)
             if dr and dr.score is not None:
                 fmt = score_fmts.get(dr.score, na_fmt)
@@ -71,14 +73,15 @@ def _write_summary_sheet(wb, results, header_fmt, score_fmts, na_fmt, num_fmt):
             else:
                 ws.write(row, col, "N/A", na_fmt)
 
-        avg_col = len(dims) + 2
+        avg_col = len(dims) + 3
         ws.write(row, avg_col, result.summary.data_content_avg or 0, num_fmt)
         ws.write(row, avg_col + 1, result.summary.structure_usability_avg or 0, num_fmt)
         ws.write(row, avg_col + 2, result.summary.overall_weighted_avg or 0, num_fmt)
 
     ws.set_column(0, 0, 30)
-    ws.set_column(1, 1, 22)
-    ws.set_column(2, len(headers) - 1, 16)
+    ws.set_column(1, 1, 40)
+    ws.set_column(2, 2, 22)
+    ws.set_column(3, len(headers) - 1, 16)
 
 
 def _write_details_sheet(wb, results, header_fmt, score_fmts, na_fmt, text_fmt):

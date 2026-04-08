@@ -663,6 +663,7 @@ _HTML_TEMPLATE = r"""<!DOCTYPE html>
           <tr>
             <th rowspan="2" style="text-align:center;width:30px;">#</th>
             <th rowspan="2" style="text-align:left;">Case ID</th>
+            <th rowspan="2" style="text-align:left;">Task ID</th>
             <th rowspan="2" style="text-align:left;">Scenario</th>
             <th colspan="4" class="block-header">Data &amp; Content</th>
             <th colspan="4" class="block-header">Structure &amp; Usability</th>
@@ -680,6 +681,7 @@ _HTML_TEMPLATE = r"""<!DOCTYPE html>
           <tr>
             <td style="text-align:center;color:var(--color-fg-muted);">{{ loop.index }}</td>
             <td><a class="case-link" href="javascript:void(0)" onclick="showCase({{ loop.index0 }})">{{ r.case_id }}</a></td>
+            <td style="font-size:11px;color:var(--color-fg-muted);font-family:monospace;">{{ r.metadata.get('task_id', '') if r.metadata else '' }}</td>
             <td>
               <button class="scenario-btn" type="button"
                       onclick="document.getElementById('dlg-{{ loop.index0 }}').showModal()">

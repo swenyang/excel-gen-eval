@@ -38,8 +38,9 @@ pip install -e .
 # eval_config.yaml
 llm:
   provider: anthropic                        # LLM 提供商（anthropic、openai 等）
-  model: claude-opus-4-6-20250414            # 模型名称
-  api_key_env: ANTHROPIC_API_KEY             # 包含 API Key 的环境变量名
+  model: claude-sonnet-4-6                   # 模型名称
+  api_key: ""                                # API Key（直接填写）
+  # api_key_env: ANTHROPIC_API_KEY           # 或者通过环境变量设置（二选一）
   temperature: 0.0                           # 建议设为 0.0 以获得可复现结果
   max_retries: 3                             # API 瞬态错误最大重试次数
   timeout: 120                               # 单次 LLM 调用超时（秒）
@@ -567,17 +568,14 @@ excel-eval dimensions
 除 CLI 外，也可通过 Python 编程接口调用：
 
 ```python
-from excel_eval import Pipeline, LLMConfig
+from excel_eval.config import load_global_config
+from excel_eval.pipeline import Pipeline
 
-# 配置 LLM
-config = LLMConfig(
-    provider="anthropic",
-    model="claude-opus-4-6-20250414",
-    api_key_env="ANTHROPIC_API_KEY",
-)
+# 加载配置
+config = load_global_config("eval_config.yaml")
 
 # 创建 Pipeline 并执行评估
-pipeline = Pipeline(llm_config=config)
+pipeline = Pipeline(config)
 result = await pipeline.evaluate("./cases/case1/")
 
 # 访问结果
