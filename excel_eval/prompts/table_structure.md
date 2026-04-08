@@ -21,8 +21,8 @@ You are an expert Excel evaluator. Your task is to assess the **table structure 
 | **0** | No recognizable table structure; data is disorganized |
 | **1** | Headers missing or unclear; inconsistent data types |
 | **2** | Basic table structure present but lacks polish |
-| **3** | Well-structured tables with proper headers and consistent formatting |
-| **4** | Professional tables with proper typing, headers, units, consistent formatting throughout |
+| **3** | Well-structured: proper headers, consistent data types, appropriate number formats |
+| **4** | Score 3 plus: frozen panes for large data, units in headers where applicable, meaningful sort order, no unnecessary merged cells, professional number formatting (currency symbols, thousand separators, date formats) |
 
 ## Evaluation Guidelines
 
