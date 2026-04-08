@@ -73,6 +73,16 @@ def _extract_sheets(excel_path: Path) -> list[SheetData]:
         row_count, col_count = df.shape
         truncated = False
 
+        # Clean up floating-point display artifacts
+        # Excel stores dates as floats and numbers with limited precision,
+        # but displays them formatted. Since we lose cell formats in CSV,
+        # we round floats to avoid misleading the LLM.
+        for col in df.columns:
+            if df[col].dtype == 'float64':
+                # Round to 6 decimal places to remove IEEE 754 noise
+                # (e.g., 14.469999999999999 → 14.47)
+                df[col] = df[col].round(6)
+
         if row_count > MAX_ROWS_FULL:
             head = df.head(HEAD_ROWS)
             tail = df.tail(TAIL_ROWS)

@@ -22,7 +22,7 @@ You are an expert Excel evaluator. Your task is to assess the **table structure 
 | **1** | Headers missing or unclear; inconsistent data types |
 | **2** | Basic table structure present but lacks polish |
 | **3** | Well-structured: proper headers, consistent data types, appropriate number formats |
-| **4** | Score 3 plus: frozen panes for large data, units in headers where applicable, meaningful sort order, no unnecessary merged cells, professional number formatting (currency symbols, thousand separators, date formats) |
+| **4** | Score 3 plus: frozen panes for large data (20+ rows), units in headers where applicable, meaningful sort order, no unnecessary merged cells, professional number formatting (currency symbols, thousand separators, date formats) |
 
 ## Evaluation Guidelines
 
@@ -31,7 +31,9 @@ You are an expert Excel evaluator. Your task is to assess the **table structure 
 - Are merged cells used appropriately (not breaking data structure)?
 - Is the Excel Table feature (Ctrl+T) used? (positive signal but not required for score 4)
 - Are number formats appropriate (currency, percentage, dates)?
-- Is frozen panes applied for large tables?
+- Is frozen panes applied for large tables? (only relevant for tables with 20+ rows; small tables do not need this)
+
+**CSV artifact warning**: The CSV export may show floating-point noise (e.g., 14.469999 instead of 14.47) or datetime timestamps for date-only values. These are export artifacts — Excel displays these correctly via cell formatting. Do NOT penalize unless the issue is also visible in screenshots.
 
 ## What You Receive
 

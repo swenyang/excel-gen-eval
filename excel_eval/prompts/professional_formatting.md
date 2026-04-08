@@ -34,6 +34,11 @@ You are an expert Excel evaluator. Your task is to assess the **professional for
 - **Borders and spacing**: Are they used to improve readability?
 - **Overall impression**: Does the workbook look ready for business presentation?
 
+**Important notes**:
+- Frozen panes are only expected for large tables (20+ rows). Do not penalize small tables for lacking frozen panes.
+- Floating-point display artifacts (e.g., 14.469999 instead of 14.47) are CSV export artifacts, not formatting errors. Only penalize if the Excel screenshot shows unformatted numbers.
+- Date values with time components in CSV may display as clean dates in Excel due to cell formatting. Only penalize if the screenshots confirm ugly date display.
+
 ## What You Receive
 
 1. **User's original prompt** — context for expected presentation level
