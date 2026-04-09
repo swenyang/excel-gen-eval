@@ -160,10 +160,11 @@ LLM 收到的上下文会标注 `[全量]` 或 `[采样]`，并附带 coverage n
 | 输入是 Excel，数据量大 | ✅ 全量 diff | 采样 + 扫描报告 | **高** |
 | 输入是 CSV/JSON，数据量小 | ⚠️ 文本解析尽力而为 | ✅ 全量可见 | **中高** |
 | 输入是 CSV/JSON，数据量大 | ⚠️ 文本解析尽力而为 | 采样 | **中** |
-| 输入是 PDF/Word/纯文本 | ❌ 无法做 diff | 全量或采样（取决于大小） | **中低** |
+| 输入是 PDF（文字型） | ❌ 无法做 diff | ✅ 全量文本提取（pdfplumber） | **中高** |
+| 输入是 PDF（扫描件）/Word/纯文本 | ❌ 无法做 diff | 文本提取（可能不完整） | **中低** |
 | 没有输入文件（纯 prompt 生成） | ❌ 无源数据可对比 | 仅检查内部一致性 | **低** |
 
-> **重要说明**：对于非 Excel 输入或无输入的场景，数据准确性的评估主要依赖 LLM 的采样检查和内部一致性判断，覆盖率有限。如果需要更高的校验可靠性，建议提供 Excel 格式的源数据。
+> **重要说明**：PDF 输入文件通过 pdfplumber 提取文本和表格结构，支持发票、费用报表等文字型 PDF 的数据验证。扫描件 PDF 或 Word 文件的提取效果有限。
 
 ##### 完整性 (Completeness)
 
@@ -644,11 +645,17 @@ Stage 1 从 Excel 文件中提取所有结构化信息，为 LLM 评估做准备
 
 | 提取内容 | 说明 | 用于维度 |
 |---------|------|---------|
-| **CSV 导出** | 每个 sheet 转为 CSV 文本 | 所有维度 |
+| **CSV 导出** | 每个 sheet 转为 CSV 文本（使用 Excel 显示格式：千分位、百分比、日期等） | 所有维度 |
 | **公式映射** | 每个公式的位置、公式文本、计算结果、是否有错误 | Formula & Logic |
 | **图表元数据** | 图表类型、标题、数据范围、图例/轴标签 | Chart Appropriateness |
 | **格式元数据** | 字体、颜色、条件格式规则、合并单元格、冻结窗格 | Table Structure, Professional Formatting |
-| **跨 sheet 引用** | 引用其他 sheet 的公式列表 | Sheet Organization |
+| **跨 sheet 引用** | 引用其他 sheet 的公式列表 + defined names | Sheet Organization |
+
+**输入数据加载**：支持多种格式的输入/源数据文件：
+- **Excel (.xlsx/.xls)** — 转为 CSV + 用于 data_scanner 对比
+- **PDF** — 通过 pdfplumber 提取文本和表格结构（支持发票、费用报表等）
+- **CSV/JSON/JSONL** — 直接读取
+- **其他文件** — 按纯文本读取
 
 **大数据截断策略**：如果某个 sheet 超过 500 行，自动保留前 100 行 + 后 50 行 + 中间用 `[... N rows truncated ...]` 标记，避免超出 LLM 上下文限制。
 
@@ -799,7 +806,7 @@ excel-gen-eval/
 │   │   ├── excel_parser.py      # Excel → CSV + 公式 + 图表 + 格式元数据
 │   │   ├── data_scanner.py      # 代码级数据扫描：Sheet 画像 + 源数据 diff
 │   │   ├── screenshot.py        # Excel → PNG 截图（LibreOffice + poppler）
-│   │   └── input_loader.py      # 加载各种格式的输入数据
+│   │   └── input_loader.py      # 加载各种格式的输入数据（CSV/JSON/Excel/PDF）
 │   ├── prompts/                 # 各维度的 LLM prompt 模板（.md）
 │   └── reporters/               # 报告生成器
 │       ├── json_reporter.py     # 结构化 JSON 输出
