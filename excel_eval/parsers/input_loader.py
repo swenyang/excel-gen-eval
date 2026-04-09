@@ -30,6 +30,12 @@ def load_input_file(path: str | Path) -> str:
         return _load_excel(path)
     elif suffix == ".pdf":
         return _load_pdf(path)
+    elif suffix in (".docx", ".doc"):
+        return _load_docx(path)
+    elif suffix == ".pptx":
+        return _load_pptx(path)
+    elif suffix in (".jpg", ".jpeg", ".png", ".gif", ".webp"):
+        return f"[Image file: {path.name} — visual content not extractable as text]"
     else:
         return _load_text(path)
 
@@ -132,3 +138,60 @@ def _load_pdf(path: Path) -> str:
                 parts.append(f"[Page {i + 1}]\n" + "\n".join(page_parts))
 
     return "\n\n".join(parts) if parts else f"[PDF file: {path.name} — no extractable text]"
+
+
+def _load_docx(path: Path) -> str:
+    """Load Word document, extracting paragraphs and tables."""
+    try:
+        from docx import Document
+    except ImportError:
+        return f"[Word file: {path.name} — install python-docx for extraction]"
+
+    doc = Document(str(path))
+    parts: list[str] = []
+
+    for para in doc.paragraphs:
+        text = para.text.strip()
+        if text:
+            parts.append(text)
+
+    for i, table in enumerate(doc.tables):
+        rows = []
+        for row in table.rows:
+            cells = [cell.text.strip() for cell in row.cells]
+            rows.append(" | ".join(cells))
+        if rows:
+            parts.append(f"[Table {i + 1}]\n" + "\n".join(rows))
+
+    return "\n\n".join(parts) if parts else f"[Word file: {path.name} — no extractable text]"
+
+
+def _load_pptx(path: Path) -> str:
+    """Load PowerPoint file, extracting slide text."""
+    try:
+        from pptx import Presentation
+    except ImportError:
+        return f"[PowerPoint file: {path.name} — install python-pptx for extraction]"
+
+    prs = Presentation(str(path))
+    parts: list[str] = []
+
+    for i, slide in enumerate(prs.slides):
+        slide_text: list[str] = []
+        for shape in slide.shapes:
+            if shape.has_text_frame:
+                for para in shape.text_frame.paragraphs:
+                    text = para.text.strip()
+                    if text:
+                        slide_text.append(text)
+            if shape.has_table:
+                rows = []
+                for row in shape.table.rows:
+                    cells = [cell.text.strip() for cell in row.cells]
+                    rows.append(" | ".join(cells))
+                if rows:
+                    slide_text.append("[Table]\n" + "\n".join(rows))
+        if slide_text:
+            parts.append(f"[Slide {i + 1}]\n" + "\n".join(slide_text))
+
+    return "\n\n".join(parts) if parts else f"[PowerPoint file: {path.name} — no extractable text]"

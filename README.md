@@ -654,7 +654,10 @@ Stage 1 从 Excel 文件中提取所有结构化信息，为 LLM 评估做准备
 **输入数据加载**：支持多种格式的输入/源数据文件：
 - **Excel (.xlsx/.xls)** — 转为 CSV + 用于 data_scanner 对比
 - **PDF** — 通过 pdfplumber 提取文本和表格结构（支持发票、费用报表等）
+- **Word (.docx)** — 通过 python-docx 提取段落和表格
+- **PowerPoint (.pptx)** — 通过 python-pptx 提取幻灯片文本和表格
 - **CSV/JSON/JSONL** — 直接读取
+- **图片 (.jpg/.png)** — 标注为图片文件（文本不可提取）
 - **其他文件** — 按纯文本读取
 
 **大数据截断策略**：如果某个 sheet 超过 500 行，自动保留前 100 行 + 后 50 行 + 中间用 `[... N rows truncated ...]` 标记，避免超出 LLM 上下文限制。
