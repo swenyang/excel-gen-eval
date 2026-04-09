@@ -27,8 +27,19 @@ pip install -e .
 
 | 依赖 | 用途 | 是否必需 |
 |------|------|----------|
-| **LibreOffice** | 生成工作表截图供视觉评估 | 可选（缺失时自动降级，视觉维度评分上限为 3） |
-| **poppler** (pdftotext) | 解析 PDF 格式的输入文件 | 可选（仅当输入包含 PDF 时需要） |
+| **LibreOffice** | 生成工作表截图供视觉评估 | 推荐（缺失时视觉维度评分上限为 3） |
+| **poppler** (pdftoppm) | PDF 转 PNG 截图 | 推荐（配合 LibreOffice 使用） |
+
+### 2.2.1 下载测试数据（可选）
+
+项目使用 [OpenAI GDPVal](https://huggingface.co/datasets/openai/gdpval) 数据集进行验证。运行以下脚本下载全部 62 个 Excel 测试用例：
+
+```bash
+pip install datasets  # 需要 HuggingFace datasets 库
+python scripts/download_gdpval.py
+```
+
+下载后的用例存放在 `examples/` 目录下，每个用例包含 `case.yaml`、`input/` 和 `output/` 子目录。你也可以使用自己的数据集——只需按照相同的目录结构组织即可。
 
 ### 2.3 配置
 

@@ -20,6 +20,28 @@ def main():
     with open(regression_path, encoding="utf-8") as f:
         spec = yaml.safe_load(f)
 
+    # Check if test data exists
+    missing = []
+    for case_spec in spec["cases"]:
+        case_dir = Path(case_spec["case_dir"])
+        if not case_dir.exists():
+            missing.append(str(case_dir))
+        else:
+            xlsx_files = list(case_dir.rglob("*.xlsx"))
+            if not xlsx_files:
+                missing.append(f"{case_dir} (no .xlsx files)")
+
+    if missing:
+        print("WARNING: Some test cases are missing data files:")
+        for m in missing:
+            print(f"  {m}")
+        print("\nTo download GDPVal test data, run:")
+        print("  python scripts/download_gdpval.py")
+        print()
+
+    config = load_global_config(str(config_path))
+        spec = yaml.safe_load(f)
+
     config = load_global_config(str(config_path))
     pipeline = Pipeline(config)
 
