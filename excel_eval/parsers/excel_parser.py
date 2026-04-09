@@ -137,6 +137,21 @@ def _display_value(cell) -> str:
 
     # Numeric — format to match Excel display
     if isinstance(val, (int, float)):
+        num = float(val)
+
+        # Percentage format (e.g., "0%", "0.00%")
+        if "%" in fmt:
+            pct_val = num * 100
+            # Count decimal places in percentage format
+            if "." in fmt:
+                decimal_part = fmt.split(".")[-1].rstrip("%")
+                decimals = len(decimal_part.replace("0", "X").replace("#", "X"))
+            else:
+                decimals = 0
+            if decimals == 0:
+                return f"{int(round(pct_val))}%"
+            return f"{round(pct_val, decimals):.{decimals}f}%"
+
         use_thousands = "," in fmt or "#,#" in fmt
 
         # Determine decimal places
