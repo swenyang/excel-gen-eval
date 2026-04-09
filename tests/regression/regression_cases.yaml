@@ -1,0 +1,33 @@
+# Regression test cases — grounding truth for eval quality
+#
+# Each case defines expected score ranges. If a dimension's score falls
+# outside the range after a prompt/code change, it's a regression.
+#
+# Format: [min, max] inclusive. Use null for N/A dimensions.
+
+cases:
+  - case_dir: examples/finance-orchestra-comp
+    description: "High-quality financial model — expect near-perfect scores"
+    expected:
+      data_accuracy: [3, 4]
+      completeness: [3, 4]
+      formula_logic: [3, 4]
+      relevance: [3, 4]
+      sheet_organization: [3, 4]
+      table_structure: [3, 4]
+      chart_appropriateness: null  # No charts expected
+      professional_formatting: [3, 4]
+      overall_min: 3.5
+
+  - case_dir: examples/wholesale-additional-shipments
+    description: "Good inventory planning — solid content, basic formatting"
+    expected:
+      data_accuracy: [3, 4]
+      completeness: [3, 4]
+      formula_logic: [3, 4]
+      relevance: [3, 4]
+      sheet_organization: [2, 3]
+      table_structure: [2, 3]
+      chart_appropriateness: null
+      professional_formatting: [2, 3]
+      overall_min: 2.8
