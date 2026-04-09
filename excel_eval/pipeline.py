@@ -60,6 +60,7 @@ class Pipeline:
 
     async def evaluate(
         self, case_dir: str | Path, num_runs: int = 1,
+        output_dir: str | Path | None = None,
     ) -> EvalResult:
         """Evaluate a single test case.
 
@@ -67,6 +68,7 @@ class Pipeline:
             case_dir: Path to the test case directory.
             num_runs: Number of evaluation runs. If >1, takes the median
                       score per dimension for stability.
+            output_dir: If provided, saves Stage 1 debug data to output_dir/debug/
         """
         case_dir = Path(case_dir)
         case_config = load_case_config(case_dir)
@@ -74,6 +76,10 @@ class Pipeline:
 
         # Stage 1: Data Preparation (once)
         prepared = self._stage1_prepare(case_dir, case_config)
+
+        # Save debug data if output_dir provided
+        if output_dir:
+            self._save_debug_data(Path(output_dir), case_config, prepared)
 
         # Stage 2.0: Scenario Detection (once)
         scenario = await self._detect_scenario(prepared, case_config)
@@ -110,7 +116,7 @@ class Pipeline:
 
     async def evaluate_batch(
         self, root_dir: str | Path, num_runs: int = 1,
-        parallel: int = 1,
+        parallel: int = 1, output_dir: str | Path | None = None,
     ) -> list[EvalResult]:
         """Evaluate all test cases under root_dir.
 
@@ -118,7 +124,7 @@ class Pipeline:
             root_dir: Directory containing test case subdirectories.
             num_runs: Number of runs per case (>1 uses median).
             parallel: Number of cases to evaluate concurrently.
-                      Default 1 = sequential. Set 2-4 for faster batch runs.
+            output_dir: If provided, saves debug data per case.
         """
         cases = discover_cases(root_dir)
         if not cases:
@@ -127,24 +133,33 @@ class Pipeline:
 
         logger.info("Found %d test case(s), parallel=%d", len(cases), parallel)
 
+        def _case_output_dir(case_dir: Path) -> Path | None:
+            if not output_dir:
+                return None
+            return Path(output_dir) / "debug" / case_dir.name
+
         if parallel <= 1:
-            # Sequential (original behavior)
             results: list[EvalResult] = []
             for case_dir in cases:
                 try:
-                    result = await self.evaluate(case_dir, num_runs=num_runs)
+                    result = await self.evaluate(
+                        case_dir, num_runs=num_runs,
+                        output_dir=_case_output_dir(case_dir),
+                    )
                     results.append(result)
                 except Exception as exc:
                     logger.exception("Failed to evaluate case %s: %s", case_dir, exc)
             return results
 
-        # Parallel case evaluation
         semaphore = asyncio.Semaphore(parallel)
 
         async def _run_one(case_dir: Path) -> EvalResult | None:
             async with semaphore:
                 try:
-                    return await self.evaluate(case_dir, num_runs=num_runs)
+                    return await self.evaluate(
+                        case_dir, num_runs=num_runs,
+                        output_dir=_case_output_dir(case_dir),
+                    )
                 except Exception as exc:
                     logger.exception("Failed to evaluate case %s: %s", case_dir, exc)
                     return None
@@ -457,6 +472,67 @@ class Pipeline:
                 )
 
         return dim_results
+
+    @staticmethod
+    def _save_debug_data(
+        output_dir: Path, case_config: CaseConfig, prepared: PreparedData,
+    ) -> None:
+        """Save Stage 1 intermediate data for debugging."""
+        import json as _json
+
+        debug_dir = output_dir
+        debug_dir.mkdir(parents=True, exist_ok=True)
+
+        # Save CSV per sheet
+        for sheet in prepared.sheets:
+            csv_path = debug_dir / f"sheet_{sheet.name}.csv"
+            csv_path.write_text(sheet.csv_text, encoding="utf-8")
+
+        # Save scan report
+        if prepared.scan_report_text:
+            (debug_dir / "scan_report.txt").write_text(
+                prepared.scan_report_text, encoding="utf-8"
+            )
+
+        # Save screenshots
+        for name, img_bytes in prepared.screenshots.items():
+            (debug_dir / f"screenshot_{name}.png").write_bytes(img_bytes)
+
+        # Save formula list
+        if prepared.formulas:
+            formulas = [
+                {"sheet": f.sheet, "cell": f.cell, "formula": f.formula,
+                 "value": str(f.computed_value), "error": f.has_error}
+                for f in prepared.formulas[:500]
+            ]
+            (debug_dir / "formulas.json").write_text(
+                _json.dumps(formulas, indent=2, ensure_ascii=False), encoding="utf-8"
+            )
+
+        # Save metadata summary
+        meta = {
+            "case_id": case_config.id,
+            "sheets": [{"name": s.name, "rows": s.row_count, "cols": s.col_count,
+                         "truncated": s.truncated} for s in prepared.sheets],
+            "total_formulas": len(prepared.formulas),
+            "formula_errors": sum(1 for f in prepared.formulas if f.has_error),
+            "charts": [{"sheet": c.sheet, "type": c.chart_type, "title": c.title}
+                        for c in prepared.charts],
+            "cross_sheet_refs": prepared.cross_sheet_refs[:20],
+            "screenshots_count": len(prepared.screenshots),
+            "formatting": {
+                "fonts": prepared.formatting.fonts_used,
+                "colors": prepared.formatting.color_palette[:10],
+                "conditional_formatting": prepared.formatting.has_conditional_formatting,
+                "frozen_panes": prepared.formatting.frozen_panes,
+                "merged_cells": len(prepared.formatting.merged_cell_ranges),
+            },
+        }
+        (debug_dir / "stage1_meta.json").write_text(
+            _json.dumps(meta, indent=2, ensure_ascii=False), encoding="utf-8"
+        )
+
+        logger.info("Debug data saved to %s", debug_dir)
 
     @staticmethod
     def _resolve_excel_path(case_dir: Path, case_config: CaseConfig) -> Path:

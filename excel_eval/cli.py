@@ -133,10 +133,13 @@ def run(path, batch, config_path, dims, output_dir, formats, runs, parallel, ver
 
         if batch:
             console.print(f"[bold]Batch evaluation:[/bold] {path} (parallel={parallel})")
-            results = await pipeline.evaluate_batch(path, num_runs=runs, parallel=parallel)
+            results = await pipeline.evaluate_batch(
+                path, num_runs=runs, parallel=parallel, output_dir=output_path,
+            )
         else:
             console.print(f"[bold]Evaluating:[/bold] {path}")
-            results = [await pipeline.evaluate(path, num_runs=runs)]
+            case_debug = output_path / "debug"
+            results = [await pipeline.evaluate(path, num_runs=runs, output_dir=case_debug)]
 
         for r in results:
             _print_result(r)
