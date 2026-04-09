@@ -48,8 +48,9 @@ def _downscale_image(img_bytes: bytes, max_width: int = 1200) -> bytes:
 class BaseEvaluator(abc.ABC):
     """Base class for all dimension evaluators."""
 
-    def __init__(self, llm_client: BaseLLMClient) -> None:
+    def __init__(self, llm_client: BaseLLMClient, language: str = "zh") -> None:
         self.llm_client = llm_client
+        self.language = language
         self._prompt_template: str | None = None
 
     # ── Abstract interface ─────────────────────────────────────────────
@@ -92,6 +93,19 @@ class BaseEvaluator(abc.ABC):
         start = time.perf_counter()
         try:
             system_prompt = self._load_prompt()
+
+            # Inject language instruction
+            if self.language and self.language != "en":
+                lang_names = {"zh": "Chinese (中文)", "ja": "Japanese", "ko": "Korean",
+                              "fr": "French", "de": "German", "es": "Spanish"}
+                lang_name = lang_names.get(self.language, self.language)
+                system_prompt += (
+                    f"\n\n## Language\n"
+                    f"Write ALL feedback and evidence text in **{lang_name}**. "
+                    f"Keep technical tags (+VERIFIED, -INFERRED, UNCONFIRMED) and "
+                    f"JSON field names in English."
+                )
+
             context = self.build_context(data, scenario)
 
             # Inject scenario info into the user context

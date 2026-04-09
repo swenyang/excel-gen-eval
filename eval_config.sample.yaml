@@ -15,6 +15,7 @@ evaluation:
   max_concurrent_calls: 8                    # 最大并行 LLM 调用数（8 = 每维度一个）
   screenshot_enabled: true                   # 需要 LibreOffice，设为 false 可跳过截图
   max_input_tokens_per_dimension: 100000     # 每维度 prompt 的 token 预算
+  language: zh                               # 评估输出语言：zh（中文，默认）、en（英文）
 
 output:
   formats:                                   # 报告格式

@@ -291,7 +291,8 @@ class Pipeline:
                 logger.info("  Evaluating: %s", dim_name)
                 return await evaluator.evaluate(data, scenario)
 
-        evaluators = [cls(self.llm_client) for cls in ALL_EVALUATORS]
+        language = self.config.evaluation.language
+        evaluators = [cls(self.llm_client, language=language) for cls in ALL_EVALUATORS]
         tasks = [_run_one(e) for e in evaluators]
         results = await asyncio.gather(*tasks)
 
