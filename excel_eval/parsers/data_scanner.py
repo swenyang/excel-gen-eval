@@ -88,22 +88,30 @@ def scan_generated_excel(
     generated_csv_texts: dict[str, str],
     source_text: str | None = None,
     source_dataframes: dict[str, "pd.DataFrame"] | None = None,
+    generated_dataframes: dict[str, "pd.DataFrame"] | None = None,
     formulas: list | None = None,
 ) -> ScanReport:
     """Scan generated Excel data and produce an objective report.
 
     Args:
-        generated_csv_texts: {sheet_name: csv_text} from the generated workbook
+        generated_csv_texts: {sheet_name: csv_text} for sheet profiling
         source_text: raw text of the source/grounding data (any format)
-        source_dataframes: {sheet_name: DataFrame} from the source Excel (preferred for comparison)
+        source_dataframes: {sheet_name: DataFrame} from the source Excel (raw pandas values)
+        generated_dataframes: {sheet_name: DataFrame} from the generated Excel (raw pandas values,
+            preferred over CSV for comparison to avoid format mismatches)
         formulas: list of FormulaInfo objects from excel_parser
     """
     report = ScanReport()
 
-    # Profile each sheet
-    for sheet_name, csv_text in generated_csv_texts.items():
-        profile = _profile_sheet(sheet_name, csv_text)
-        report.sheet_profiles.append(profile)
+    # Profile each sheet — prefer raw DataFrames (full data) over CSV (may be truncated)
+    if generated_dataframes:
+        for sheet_name, df in generated_dataframes.items():
+            profile = _profile_dataframe(sheet_name, df)
+            report.sheet_profiles.append(profile)
+    else:
+        for sheet_name, csv_text in generated_csv_texts.items():
+            profile = _profile_sheet(sheet_name, csv_text)
+            report.sheet_profiles.append(profile)
 
     # Analyze formulas
     if formulas:
@@ -116,14 +124,19 @@ def scan_generated_excel(
                 )
 
     # Compare with source data — match multiple sheets when possible
+    # Use raw pandas DataFrames (both sides) to avoid format mismatches
     comparisons: list[DataComparisonReport] = []
 
-    if source_dataframes and generated_csv_texts:
+    if source_dataframes:
+        # Prefer generated_dataframes (raw pandas) over CSV-parsed DataFrames
         gen_dfs: dict[str, pd.DataFrame] = {}
-        for name, csv_text in generated_csv_texts.items():
-            df = _try_parse_as_dataframe(csv_text)
-            if df is not None and len(df) > 0:
-                gen_dfs[name] = df
+        if generated_dataframes:
+            gen_dfs = {name: df for name, df in generated_dataframes.items() if len(df) > 0}
+        else:
+            for name, csv_text in generated_csv_texts.items():
+                df = _try_parse_as_dataframe(csv_text)
+                if df is not None and len(df) > 0:
+                    gen_dfs[name] = df
 
         used_gen: set[str] = set()
         for src_name, src_df in source_dataframes.items():
@@ -225,6 +238,11 @@ def _profile_sheet(name: str, csv_text: str) -> SheetProfile:
     df = _try_parse_as_dataframe(csv_text)
     if df is None:
         return SheetProfile(name=name, row_count=0, col_count=0)
+    return _profile_dataframe(name, df)
+
+
+def _profile_dataframe(name: str, df: pd.DataFrame) -> SheetProfile:
+    """Profile a sheet from a pandas DataFrame."""
 
     columns = []
     for col_name in df.columns:
@@ -403,14 +421,20 @@ def _values_match(a, b) -> bool:
     if pd.isna(a) or pd.isna(b):
         return False
 
-    # String comparison
+    # String comparison (strip whitespace)
     str_a, str_b = str(a).strip(), str(b).strip()
     if str_a == str_b:
         return True
 
+    # Strip thousand separators and currency symbols before numeric comparison
+    clean_a = str_a.replace(",", "").replace("$", "").replace("€", "").replace("¥", "")
+    clean_b = str_b.replace(",", "").replace("$", "").replace("€", "").replace("¥", "")
+    if clean_a == clean_b:
+        return True
+
     # Numeric comparison with tolerance
     try:
-        num_a, num_b = float(a), float(b)
+        num_a, num_b = float(clean_a), float(clean_b)
         if num_a == 0 and num_b == 0:
             return True
         if abs(num_a) < 1e-10:

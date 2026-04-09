@@ -228,33 +228,40 @@ DEFAULT_WEIGHTS: dict[str, float] = {
 }
 
 SCENARIO_WEIGHTS: dict[Scenario, dict[str, float]] = {
+    # Weights revised based on 62-case GDPVal analysis.
+    # Principles:
+    #   - DA and Completeness are always important (>=1.0)
+    #   - Chart is low everywhere (most workbooks don't have charts)
+    #   - PF is always low (formatting matters less than content)
+    #   - Relevance is uniform 1.0 (new definition: just "no irrelevant content")
+    #   - Scenario-specific boosts only where truly differentiating
     Scenario.REPORTING_ANALYSIS: {
-        DimensionName.DATA_ACCURACY: 1.0,
-        DimensionName.COMPLETENESS: 1.3,
+        DimensionName.DATA_ACCURACY: 1.2,
+        DimensionName.COMPLETENESS: 1.2,
         DimensionName.FORMULA_LOGIC: 1.0,
         DimensionName.RELEVANCE: 1.0,
         DimensionName.SHEET_ORGANIZATION: 1.0,
         DimensionName.TABLE_STRUCTURE: 1.0,
-        DimensionName.CHART_APPROPRIATENESS: 1.5,
-        DimensionName.PROFESSIONAL_FORMATTING: 0.8,
+        DimensionName.CHART_APPROPRIATENESS: 1.0,
+        DimensionName.PROFESSIONAL_FORMATTING: 0.6,
     },
     Scenario.DATA_PROCESSING: {
-        DimensionName.DATA_ACCURACY: 1.5,
+        DimensionName.DATA_ACCURACY: 1.3,
         DimensionName.COMPLETENESS: 1.0,
         DimensionName.FORMULA_LOGIC: 0.8,
         DimensionName.RELEVANCE: 1.0,
-        DimensionName.SHEET_ORGANIZATION: 1.3,
-        DimensionName.TABLE_STRUCTURE: 1.3,
+        DimensionName.SHEET_ORGANIZATION: 1.0,
+        DimensionName.TABLE_STRUCTURE: 1.2,
         DimensionName.CHART_APPROPRIATENESS: 0.5,
         DimensionName.PROFESSIONAL_FORMATTING: 0.5,
     },
     Scenario.TEMPLATE_FORM: {
         DimensionName.DATA_ACCURACY: 1.0,
         DimensionName.COMPLETENESS: 1.0,
-        DimensionName.FORMULA_LOGIC: 1.3,
+        DimensionName.FORMULA_LOGIC: 1.2,
         DimensionName.RELEVANCE: 1.0,
         DimensionName.SHEET_ORGANIZATION: 1.0,
-        DimensionName.TABLE_STRUCTURE: 1.5,
+        DimensionName.TABLE_STRUCTURE: 1.3,
         DimensionName.CHART_APPROPRIATENESS: 0.5,
         DimensionName.PROFESSIONAL_FORMATTING: 0.8,
     },
@@ -264,28 +271,28 @@ SCENARIO_WEIGHTS: dict[Scenario, dict[str, float]] = {
         DimensionName.FORMULA_LOGIC: 1.0,
         DimensionName.RELEVANCE: 1.0,
         DimensionName.SHEET_ORGANIZATION: 1.0,
-        DimensionName.TABLE_STRUCTURE: 1.3,
-        DimensionName.CHART_APPROPRIATENESS: 0.8,
+        DimensionName.TABLE_STRUCTURE: 1.2,
+        DimensionName.CHART_APPROPRIATENESS: 0.5,
         DimensionName.PROFESSIONAL_FORMATTING: 0.6,
     },
     Scenario.FINANCIAL_MODELING: {
-        DimensionName.DATA_ACCURACY: 1.5,
-        DimensionName.COMPLETENESS: 1.3,
-        DimensionName.FORMULA_LOGIC: 1.5,
+        DimensionName.DATA_ACCURACY: 1.3,
+        DimensionName.COMPLETENESS: 1.2,
+        DimensionName.FORMULA_LOGIC: 1.3,
         DimensionName.RELEVANCE: 1.0,
-        DimensionName.SHEET_ORGANIZATION: 1.3,
+        DimensionName.SHEET_ORGANIZATION: 1.0,
         DimensionName.TABLE_STRUCTURE: 1.0,
-        DimensionName.CHART_APPROPRIATENESS: 0.8,
+        DimensionName.CHART_APPROPRIATENESS: 0.5,
         DimensionName.PROFESSIONAL_FORMATTING: 0.5,
     },
     Scenario.COMPARISON_EVALUATION: {
         DimensionName.DATA_ACCURACY: 1.0,
-        DimensionName.COMPLETENESS: 1.3,
+        DimensionName.COMPLETENESS: 1.2,
         DimensionName.FORMULA_LOGIC: 0.8,
         DimensionName.RELEVANCE: 1.0,
         DimensionName.SHEET_ORGANIZATION: 1.0,
-        DimensionName.TABLE_STRUCTURE: 1.3,
-        DimensionName.CHART_APPROPRIATENESS: 1.0,
+        DimensionName.TABLE_STRUCTURE: 1.2,
+        DimensionName.CHART_APPROPRIATENESS: 0.8,
         DimensionName.PROFESSIONAL_FORMATTING: 0.6,
     },
     Scenario.GENERAL: DEFAULT_WEIGHTS,

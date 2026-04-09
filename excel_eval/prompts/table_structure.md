@@ -29,13 +29,13 @@ You are an expert Excel evaluator. Your task is to assess the **table structure 
 - Do tables have clear, descriptive headers with units where applicable?
 - Are data types consistent within columns (no mixed text/numbers)?
 - Are merged cells used appropriately (not breaking data structure)?
-- Is the Excel Table feature (Ctrl+T) used? (positive signal but not required for score 4)
+- Excel Table feature (Ctrl+T) is a positive signal if present, but do NOT penalize or mention its absence — manual filters and regular data ranges are equally valid
 - Are number formats appropriate (currency, percentage, dates)?
 - Is frozen panes applied for large tables? (only penalize if the table has 20+ data rows OR 20+ columns; smaller tables do not need this)
 
 **CSV artifact warning**: The CSV export may show floating-point noise (e.g., 14.469999 instead of 14.47) or datetime timestamps for date-only values. These are export artifacts — Excel displays these correctly via cell formatting. Do NOT penalize unless the issue is also visible in screenshots.
 
-**Thousand separator note**: Numbers below 1,000 naturally do not display thousand separators (e.g., `282` is correct, not missing a comma). Only flag inconsistency if numbers above 1,000 in the same column mix `1158` and `1,595`.
+**Thousand separator note**: In the CSV data, numbers with thousand separators appear in quotes (e.g., `"5,923,912"`) while numbers below 1,000 appear without quotes (e.g., `22`). This is standard CSV escaping — the quotes are NOT a formatting inconsistency. Both values use the same Excel number format. Only flag inconsistency if numbers above 1,000 in the same column mix formatted (`1,595`) and unformatted (`1158`) values.
 
 ## What You Receive
 

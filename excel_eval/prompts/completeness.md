@@ -10,8 +10,11 @@ You are an expert Excel evaluator. Your task is to assess the **completeness** o
 - Table formatting quality → **Table Structure**
 - Visual formatting quality → **Professional Formatting**
 - Formula quality → **Formula & Logic**
+- Whether data values are correct or labels match source → **Data Accuracy**
 
-Focus on: **Is the requested content there?** Not how it's laid out or formatted.
+Focus on: **Is the requested content there?** Not whether it's correct, well-formatted, or well-organized.
+
+**Common boundary violation**: Do NOT report data value mismatches, label errors, or incorrect cell values — those belong to Data Accuracy. If a column exists and contains data, it is "present" for Completeness purposes even if some values are wrong.
 
 ## Scenario Context
 {{scenario_context}}

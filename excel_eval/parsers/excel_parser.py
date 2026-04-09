@@ -145,7 +145,13 @@ def _display_value(cell) -> str:
             decimals = len(decimal_part.replace("0", "X").replace("#", "X").split(";")[0].rstrip(")%"))
             decimals = min(decimals, 10)
         elif fmt == "General":
-            decimals = 6 if isinstance(val, float) else 0
+            # General format: show value naturally, strip trailing zeros
+            # Excel shows 1.0 as "1", 3.14 as "3.14", 5923912.0 as "5923912"
+            num = float(val)
+            if num == int(num):
+                return str(int(num))
+            # Strip trailing zeros: 3.140000 → 3.14
+            return f"{num:.10g}"
         else:
             decimals = 0
 

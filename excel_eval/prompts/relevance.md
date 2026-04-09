@@ -36,10 +36,14 @@ Ask yourself:
 3. Is the level of detail appropriate (not excessively granular or shallow)?
 4. Is there redundant/duplicate content?
 
-**Score 4 should be common** for workbooks that stay on topic — most AI-generated Excel files don't add random unrelated content. Only deduct if you find genuinely unnecessary material.
+**Score 4 should be common** for workbooks that stay on topic — most AI-generated Excel files don't add random unrelated content. Only deduct if you find genuinely irrelevant/off-topic material in the workbook.
+
+**Scoring rule**: If every piece of content in the workbook relates to the user's request, score **4** regardless of any other quality issues. Other problems (missing items, wrong values, poor formatting, bad formulas) are handled by their respective dimensions. Relevance ONLY drops below 4 when there is actual irrelevant content present.
 
 Do NOT deduct for:
 - Missing requirements (that's Completeness)
+- Incorrect values (that's Data Accuracy)
+- Poor formulas (that's Formula & Logic)
 - Poor formatting (that's Professional Formatting)
 - Poor structure (that's Sheet/Table Organization)
 - Source data characteristics
@@ -52,6 +56,8 @@ Do NOT deduct for:
 ## Output Format
 
 Respond with **valid JSON only**, no other text.
+
+**IMPORTANT**: Every evidence item must be about content RELEVANCE — is something irrelevant or off-topic? Do NOT include findings about missing content (Completeness), data errors (Data Accuracy), formula quality (Formula & Logic), or formatting. If you catch yourself writing about those topics, omit that evidence item.
 
 Each evidence item must start with a sentiment tag and a verification tag:
 - `+` = positive finding (content is relevant)

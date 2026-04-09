@@ -38,6 +38,9 @@ You are an expert Excel evaluator. Your task is to assess the **professional for
 - Frozen panes are only expected for large tables (20+ rows). Do not penalize small tables for lacking frozen panes.
 - Floating-point display artifacts (e.g., 14.469999 instead of 14.47) are CSV export artifacts, not formatting errors. Only penalize if the Excel screenshot shows unformatted numbers.
 - Date values with time components in CSV may display as clean dates in Excel due to cell formatting. Only penalize if the screenshots confirm ugly date display.
+- **Header distinction**: Bold headers are a valid and common way to distinguish headers from data rows. Do NOT require background fill color — bold, borders, or font size differences are all acceptable header styling.
+- **Alternating row banding**: Nice-to-have but NOT required. Many professional workbooks use borders or gridlines instead. Do not penalize absence of row banding.
+- **Cell borders**: Nice-to-have. Excel displays gridlines by default which serve the same purpose. Only penalize if the workbook has NO visual row/column separation at all (no gridlines AND no borders).
 
 ## What You Receive
 

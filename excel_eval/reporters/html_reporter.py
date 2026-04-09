@@ -841,7 +841,7 @@ _HTML_TEMPLATE = r"""<!DOCTYPE html>
        VIEW 2: Case Detail (one div per case, hidden by default)
        ═══════════════════════════════════════════════════════════ -->
   {% for r in results %}
-  {% set weights = scenario_weights[r.scenario.detected] %}
+  {% set weights = get_blended_weights(r.scenario) %}
   <div id="case-detail-{{ loop.index0 }}" class="view-hidden">
 
     <a class="back-link" href="javascript:void(0)" onclick="showSummary()">&larr; Back to Summary</a>

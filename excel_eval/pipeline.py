@@ -168,6 +168,15 @@ class Pipeline:
 
         csv_texts = {s.name: s.csv_text for s in prepared.sheets}
 
+        # Load generated DataFrames via pandas (raw values, for scanner comparison)
+        generated_dfs: dict[str, pd.DataFrame] = {}
+        try:
+            gen_xls = pd.ExcelFile(excel_path)
+            for sheet_name in gen_xls.sheet_names:
+                generated_dfs[sheet_name] = pd.read_excel(gen_xls, sheet_name=sheet_name)
+        except Exception as e:
+            logger.warning("Could not load generated Excel for scanning: %s", e)
+
         # Load source DataFrames from input Excel files for precise comparison
         source_dfs: dict[str, pd.DataFrame] = {}
         if case_config.input_files:
@@ -187,6 +196,7 @@ class Pipeline:
             csv_texts,
             source_text=grounding,
             source_dataframes=source_dfs if source_dfs else None,
+            generated_dataframes=generated_dfs if generated_dfs else None,
             formulas=prepared.formulas,
         )
         prepared.scan_report_text = format_scan_report(scan)

@@ -30,6 +30,8 @@ You are an expert Excel evaluator. Your task is to assess the **formula usage an
 - Absence of IFERROR wrapping — good practice but not required
 - **Hardcoded values that originate from input/source files** — this is the #1 false positive. AI agents create NEW workbooks by copying data from input files. Any value that came from an input file (shipment dates, inventory counts, conversion ratios, delivery schedules, reference data) will naturally appear as a hardcoded value. This is CORRECT behavior. Do NOT suggest it "should use VLOOKUP" or "should reference the source tab" — the source tab does not exist in the output workbook.
 - **Hardcoded values in a summary section that duplicate calculated values from the main table** — if a summary table restates values from the analysis section, hardcoding is acceptable. Cross-referencing within the same sheet is nice-to-have but not required.
+- **Hardcoded flags or selections based on human judgment** — values like sample selection markers (1/0), priority flags, or category assignments that reflect human decisions rather than computable logic are inherently hardcoded. Do NOT suggest these should be formula-driven.
+- **Parameters given in the user's prompt** — if the prompt specifies values like "90% confidence level" or "10% error rate", these are input parameters and SHOULD be hardcoded. Only penalize if the *calculated result* derived from these parameters is hardcoded instead of using a formula.
 
 ## What You Receive
 
