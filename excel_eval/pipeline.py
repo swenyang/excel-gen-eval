@@ -110,24 +110,48 @@ class Pipeline:
 
     async def evaluate_batch(
         self, root_dir: str | Path, num_runs: int = 1,
+        parallel: int = 1,
     ) -> list[EvalResult]:
-        """Evaluate all test cases under root_dir."""
+        """Evaluate all test cases under root_dir.
+
+        Args:
+            root_dir: Directory containing test case subdirectories.
+            num_runs: Number of runs per case (>1 uses median).
+            parallel: Number of cases to evaluate concurrently.
+                      Default 1 = sequential. Set 2-4 for faster batch runs.
+        """
         cases = discover_cases(root_dir)
         if not cases:
             logger.warning("No test cases found under %s", root_dir)
             return []
 
-        logger.info("Found %d test case(s)", len(cases))
-        results: list[EvalResult] = []
+        logger.info("Found %d test case(s), parallel=%d", len(cases), parallel)
 
-        for case_dir in cases:
-            try:
-                result = await self.evaluate(case_dir, num_runs=num_runs)
-                results.append(result)
-            except Exception as exc:
-                logger.exception("Failed to evaluate case %s: %s", case_dir, exc)
+        if parallel <= 1:
+            # Sequential (original behavior)
+            results: list[EvalResult] = []
+            for case_dir in cases:
+                try:
+                    result = await self.evaluate(case_dir, num_runs=num_runs)
+                    results.append(result)
+                except Exception as exc:
+                    logger.exception("Failed to evaluate case %s: %s", case_dir, exc)
+            return results
 
-        return results
+        # Parallel case evaluation
+        semaphore = asyncio.Semaphore(parallel)
+
+        async def _run_one(case_dir: Path) -> EvalResult | None:
+            async with semaphore:
+                try:
+                    return await self.evaluate(case_dir, num_runs=num_runs)
+                except Exception as exc:
+                    logger.exception("Failed to evaluate case %s: %s", case_dir, exc)
+                    return None
+
+        tasks = [_run_one(case_dir) for case_dir in cases]
+        raw_results = await asyncio.gather(*tasks)
+        return [r for r in raw_results if r is not None]
 
     # ── Stage 1: Data Preparation ──────────────────────────────────────
 

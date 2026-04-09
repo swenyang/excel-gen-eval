@@ -111,8 +111,9 @@ def main():
 @click.option("--output", "output_dir", default="./results", help="Output directory")
 @click.option("--format", "formats", default="json,html,excel", help="Output formats (comma-separated)")
 @click.option("--runs", default=1, type=int, help="Eval runs per case (>1 takes median; use for stability diagnostics, not routine)")
+@click.option("--parallel", default=1, type=int, help="Number of cases to evaluate concurrently in batch mode (default: 1)")
 @click.option("-v", "--verbose", is_flag=True, help="Verbose logging")
-def run(path, batch, config_path, dims, output_dir, formats, runs, verbose):
+def run(path, batch, config_path, dims, output_dir, formats, runs, parallel, verbose):
     """Evaluate Excel file(s) in a test case directory."""
     _setup_logging(verbose)
 
@@ -131,8 +132,8 @@ def run(path, batch, config_path, dims, output_dir, formats, runs, verbose):
         pipeline = Pipeline(config)
 
         if batch:
-            console.print(f"[bold]Batch evaluation:[/bold] {path}")
-            results = await pipeline.evaluate_batch(path, num_runs=runs)
+            console.print(f"[bold]Batch evaluation:[/bold] {path} (parallel={parallel})")
+            results = await pipeline.evaluate_batch(path, num_runs=runs, parallel=parallel)
         else:
             console.print(f"[bold]Evaluating:[/bold] {path}")
             results = [await pipeline.evaluate(path, num_runs=runs)]
