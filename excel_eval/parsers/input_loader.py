@@ -28,6 +28,8 @@ def load_input_file(path: str | Path) -> str:
         return _load_jsonl(path)
     elif suffix in (".xlsx", ".xls"):
         return _load_excel(path)
+    elif suffix == ".pdf":
+        return _load_pdf(path)
     else:
         return _load_text(path)
 
@@ -102,3 +104,31 @@ def _load_text(path: Path) -> str:
         return path.read_text(encoding="utf-8")
     except UnicodeDecodeError:
         return path.read_text(encoding="latin-1")
+
+
+def _load_pdf(path: Path) -> str:
+    """Load PDF file, extracting text and tables via pdfplumber."""
+    try:
+        import pdfplumber
+    except ImportError:
+        return f"[PDF file: {path.name} — install pdfplumber for better extraction]"
+
+    parts: list[str] = []
+    with pdfplumber.open(path) as pdf:
+        for i, page in enumerate(pdf.pages):
+            page_parts: list[str] = []
+
+            text = page.extract_text()
+            if text:
+                page_parts.append(text)
+
+            tables = page.extract_tables()
+            for t_idx, table in enumerate(tables):
+                if table:
+                    rows = [" | ".join(str(cell or "") for cell in row) for row in table]
+                    page_parts.append(f"[Table {t_idx + 1}]\n" + "\n".join(rows))
+
+            if page_parts:
+                parts.append(f"[Page {i + 1}]\n" + "\n".join(page_parts))
+
+    return "\n\n".join(parts) if parts else f"[PDF file: {path.name} — no extractable text]"
