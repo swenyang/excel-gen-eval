@@ -41,6 +41,8 @@ You are an expert Excel evaluator. Your task is to assess the **professional for
 - **Header and total row distinction**: Bold formatting is a valid and professional way to distinguish headers and totals from data rows. Do NOT require background fill color — bold, borders, font size, or font color differences are all acceptable styling methods.
 - **Alternating row banding**: Nice-to-have but NOT required. Many professional workbooks use borders or gridlines instead. Do not penalize absence of row banding.
 - **Cell borders**: Nice-to-have. Excel displays gridlines by default which serve the same purpose. Only penalize if the workbook has NO visual row/column separation at all (no gridlines AND no borders).
+- **Source data formatting**: If content was copied from input files (e.g., Notes columns, Assumptions tabs), do NOT penalize formatting issues that originate from the source data (column widths, text truncation, layout). Only evaluate formatting that the AI agent created or should have improved.
+- **Color scheme simplicity**: Using a single accent color throughout is acceptable and professional. Do NOT require multiple colors to differentiate sections (e.g., input vs output). Consistent use of one color scheme is a positive, not a negative.
 
 ## What You Receive
 
