@@ -104,44 +104,35 @@ def download_file(url: str, dest: Path) -> bool:
 
 def write_case_yaml(case_dir: Path, case_name: str, row: dict,
                      ref_files: list, del_xlsx: list) -> None:
-    """Write case.yaml if it doesn't exist."""
+    """Write case.yaml if it doesn't exist. Uses yaml.dump for proper escaping."""
     yaml_path = case_dir / "case.yaml"
     if yaml_path.exists():
         return
 
-    lines = [
-        f"id: {case_name}",
-        f'description: "GDPVal {row[\"task_id\"][:8]} - {row[\"occupation\"]}"',
-        "",
-        "prompt: |",
-    ]
-    for line in row["prompt"].split("\n"):
-        lines.append(f"  {line}")
+    import yaml
 
-    lines += ["", "input_files:"]
-    for f in ref_files:
-        fname = f.split("/")[-1]
-        lines.append(f'  - path: "input/{fname}"')
-        lines.append(f'    description: "{fname}"')
-    if not ref_files:
-        lines.append("  []")
+    case = {
+        "id": case_name,
+        "description": f"GDPVal {row['task_id'][:8]} - {row['occupation']}",
+        "prompt": row["prompt"],
+        "input_files": [
+            {"path": f"input/{f.split('/')[-1]}", "description": f.split("/")[-1]}
+            for f in ref_files
+        ] if ref_files else [],
+        "output_files": [
+            {"path": f"output/{f.split('/')[-1]}", "description": f.split("/")[-1]}
+            for f in del_xlsx
+        ],
+        "metadata": {
+            "source": "openai/gdpval",
+            "task_id": row["task_id"],
+            "sector": row["sector"],
+            "occupation": row["occupation"],
+        },
+    }
 
-    lines += ["", "output_files:"]
-    for f in del_xlsx:
-        fname = f.split("/")[-1]
-        lines.append(f'  - path: "output/{fname}"')
-        lines.append(f'    description: "{fname}"')
-
-    lines += [
-        "",
-        "metadata:",
-        f"  source: openai/gdpval",
-        f'  task_id: "{row["task_id"]}"',
-        f'  sector: "{row["sector"]}"',
-        f'  occupation: "{row["occupation"]}"',
-    ]
-
-    yaml_path.write_text("\n".join(lines), encoding="utf-8")
+    with open(yaml_path, "w", encoding="utf-8") as f:
+        yaml.dump(case, f, allow_unicode=True, default_flow_style=False, sort_keys=False)
 
 
 def main():
