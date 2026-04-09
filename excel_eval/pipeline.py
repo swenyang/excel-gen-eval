@@ -479,13 +479,18 @@ class Pipeline:
     ) -> None:
         """Save Stage 1 intermediate data for debugging."""
         import json as _json
+        import re as _re
 
         debug_dir = output_dir
         debug_dir.mkdir(parents=True, exist_ok=True)
 
+        def _safe_filename(name: str) -> str:
+            """Remove characters illegal in Windows filenames."""
+            return _re.sub(r'[<>:"/\\|?*]', '_', name)
+
         # Save CSV per sheet
         for sheet in prepared.sheets:
-            csv_path = debug_dir / f"sheet_{sheet.name}.csv"
+            csv_path = debug_dir / f"sheet_{_safe_filename(sheet.name)}.csv"
             csv_path.write_text(sheet.csv_text, encoding="utf-8")
 
         # Save scan report
@@ -496,7 +501,7 @@ class Pipeline:
 
         # Save screenshots
         for name, img_bytes in prepared.screenshots.items():
-            (debug_dir / f"screenshot_{name}.png").write_bytes(img_bytes)
+            (debug_dir / f"screenshot_{_safe_filename(name)}.png").write_bytes(img_bytes)
 
         # Save formula list
         if prepared.formulas:

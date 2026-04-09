@@ -86,6 +86,16 @@ def _extract_sheets(excel_path: Path) -> list[SheetData]:
         for row_idx, row in enumerate(ws.iter_rows(values_only=False)):
             if row_idx == 0:
                 headers = [_display_value(cell) for cell in row]
+                # Deduplicate headers (pandas requires unique column names)
+                seen: dict[str, int] = {}
+                for j, h in enumerate(headers):
+                    if not h:
+                        headers[j] = f"Column_{j+1}"
+                    if headers[j] in seen:
+                        seen[headers[j]] += 1
+                        headers[j] = f"{headers[j]}_{seen[headers[j]]}"
+                    else:
+                        seen[headers[j]] = 0
                 continue
             rows_data.append([_display_value(cell) for cell in row])
 
