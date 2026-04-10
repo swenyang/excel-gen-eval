@@ -121,6 +121,9 @@ def _generate_via_pdf(
     with tempfile.TemporaryDirectory() as tmpdir:
         tmpdir_path = Path(tmpdir)
 
+        # Step 0: Create a trimmed copy to avoid bloated PDFs from empty columns/rows
+        trimmed_path = _trim_excel_for_screenshot(excel_path, tmpdir_path)
+
         # Step 1: Convert Excel to PDF (all sheets become pages)
         cmd = [
             lo_path,
@@ -128,7 +131,7 @@ def _generate_via_pdf(
             "--calc",
             "--convert-to", "pdf",
             "--outdir", str(tmpdir_path),
-            str(excel_path),
+            str(trimmed_path),
         ]
 
         result = subprocess.run(
@@ -143,7 +146,7 @@ def _generate_via_pdf(
 
         pdf_path = pdf_files[0]
 
-        # Step 2: Convert PDF pages to PNGs using Pillow (reads PDF if pillow has PDF support)
+        # Step 2: Convert PDF pages to PNGs
         try:
             screenshots = _pdf_to_pngs(pdf_path, sheet_names)
         except Exception as e:
@@ -153,6 +156,56 @@ def _generate_via_pdf(
     return screenshots
 
 
+def _trim_excel_for_screenshot(excel_path: Path, tmpdir: Path) -> Path:
+    """Create a trimmed copy of an Excel file, removing trailing empty columns/rows.
+
+    This prevents LibreOffice from generating hundreds of PDF pages for files
+    where max_column=16384 due to stray formatting on empty cells.
+    """
+    import openpyxl
+
+    try:
+        wb = openpyxl.load_workbook(str(excel_path))
+        needs_trim = False
+
+        for ws in wb.worksheets:
+            # Find the last column with actual data
+            last_data_col = 0
+            last_data_row = 0
+            for row in ws.iter_rows(min_row=1, max_row=min(ws.max_row or 0, 500),
+                                     max_col=min(ws.max_column or 0, 500)):
+                for cell in row:
+                    if cell.value is not None and str(cell.value).strip():
+                        last_data_col = max(last_data_col, cell.column)
+                        last_data_row = max(last_data_row, cell.row)
+
+            # If Excel reports far more columns than have data, trim is needed
+            if ws.max_column and last_data_col > 0 and ws.max_column > last_data_col * 2:
+                needs_trim = True
+                # Delete columns beyond data range (from right to left)
+                if ws.max_column > last_data_col + 1:
+                    ws.delete_cols(last_data_col + 1, ws.max_column - last_data_col)
+
+            # Trim trailing empty rows too
+            if ws.max_row and last_data_row > 0 and ws.max_row > last_data_row * 2:
+                needs_trim = True
+                if ws.max_row > last_data_row + 1:
+                    ws.delete_rows(last_data_row + 1, ws.max_row - last_data_row)
+
+        if needs_trim:
+            trimmed = tmpdir / f"trimmed_{excel_path.name}"
+            wb.save(str(trimmed))
+            wb.close()
+            logger.info("Trimmed Excel for screenshot: %s", excel_path.name)
+            return trimmed
+
+        wb.close()
+    except Exception as e:
+        logger.debug("Could not trim Excel for screenshot: %s", e)
+
+    return excel_path
+
+
 def _pdf_to_pngs(pdf_path: Path, sheet_names: list[str]) -> dict[str, bytes]:
     """Convert PDF pages to PNG images.
 
@@ -160,8 +213,8 @@ def _pdf_to_pngs(pdf_path: Path, sheet_names: list[str]) -> dict[str, bytes]:
     generate hundreds of print pages in a PDF — we take enough to cover
     each sheet's first page but cap total to avoid excessive processing.
     """
-    # Heuristic: at most 3 pages per sheet (cover page + 2 overflow), max 50 total
-    max_pages = min(max(len(sheet_names) * 3, 10), 50)
+    # Heuristic: at most 3 pages per sheet, max 50 total
+    max_pages = min(max(len(sheet_names) * 3, 6), 50)
 
     try:
         from pdf2image import convert_from_path

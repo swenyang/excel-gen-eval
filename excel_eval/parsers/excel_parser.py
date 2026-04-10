@@ -105,6 +105,17 @@ def _extract_sheets(excel_path: Path) -> list[SheetData]:
 
         df = pd.DataFrame(rows_data, columns=headers) if headers else df_raw
 
+        # Drop trailing all-empty columns (openpyxl may include 16384 cols due to formatting)
+        if len(df.columns) > 0:
+            last_non_empty = 0
+            for i, col in enumerate(df.columns):
+                col_vals = df[col]
+                if col_vals.notna().any() and not (col_vals.astype(str).str.strip() == "").all():
+                    last_non_empty = i
+            if last_non_empty < len(df.columns) - 1:
+                df = df.iloc[:, :last_non_empty + 1]
+                col_count = len(df.columns)
+
         truncated = False
         if row_count > MAX_ROWS_FULL:
             head = df.head(HEAD_ROWS)
