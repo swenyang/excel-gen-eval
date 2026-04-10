@@ -490,6 +490,7 @@ _HTML_TEMPLATE = r"""<!DOCTYPE html>
   .metadata-item .meta-value { color: var(--color-fg); }
 
   /* Prompt block */
+  .prompt-wrapper { position: relative; margin-bottom: 16px; }
   .prompt-block {
     background: var(--color-bg-subtle);
     border: 1px solid var(--color-border-muted);
@@ -500,10 +501,24 @@ _HTML_TEMPLATE = r"""<!DOCTYPE html>
     line-height: 1.6;
     white-space: pre-wrap;
     word-break: break-word;
-    margin-bottom: 16px;
     max-height: 300px;
     overflow-y: auto;
   }
+  .copy-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    padding: 3px 10px;
+    font-size: 11px;
+    cursor: pointer;
+    color: var(--color-fg-muted);
+    opacity: 0.7;
+    transition: opacity 0.15s;
+  }
+  .copy-btn:hover { opacity: 1; background: var(--color-bg-subtle); }
 
   /* File path */
   .file-path {
@@ -884,7 +899,10 @@ _HTML_TEMPLATE = r"""<!DOCTYPE html>
         {# ── Prompt ──────────────────────────────────────── #}
         {% if r.prompt %}
         <div class="section-title">Prompt</div>
-        <div class="prompt-block">{{ r.prompt }}</div>
+        <div class="prompt-wrapper">
+          <button class="copy-btn" onclick="navigator.clipboard.writeText(this.nextElementSibling.textContent).then(()=>{this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',1500)})">Copy</button>
+          <div class="prompt-block">{{ r.prompt }}</div>
+        </div>
         {% endif %}
 
         {# ── Files ───────────────────────────────────────── #}
