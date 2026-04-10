@@ -26,7 +26,9 @@ Score N/A (`null`) ONLY if:
 
 **Do NOT score N/A if**:
 - The user explicitly requested charts/visualizations but none exist → Score **0** (charts required but missing)
-- The scenario strongly expects charts (e.g., reporting/analysis with trend data) and none exist → Score **0-1**
+- The scenario strongly expects charts (e.g., dashboard with KPIs, trend analysis over time) and none exist → Score **1-2**
+
+**Important distinction**: Score 0 is reserved for cases where charts were **explicitly requested** by the user but completely missing, or where existing charts are broken/misleading. If charts are merely "expected by convention" (e.g., a reporting scenario where charts would be nice to have), the absence should be scored **1-2**, not 0. Many professional Excel reports use tables with text conclusions instead of charts — this is a valid approach.
 
 ## Evaluation Guidelines
 
