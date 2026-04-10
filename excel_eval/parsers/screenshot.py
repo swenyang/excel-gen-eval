@@ -18,6 +18,15 @@ from PIL import Image
 logger = logging.getLogger(__name__)
 
 
+def _is_blank_image(img: Image.Image, threshold: float = 0.01) -> bool:
+    """Check if an image is near-blank (< threshold fraction of non-white pixels)."""
+    import numpy as np
+    arr = np.array(img.convert("RGB"))
+    non_white = (arr < 250).any(axis=2).sum()
+    total = arr.shape[0] * arr.shape[1]
+    return (non_white / total) < threshold
+
+
 class ScreenshotError(RuntimeError):
     """Raised when screenshot generation fails and is required."""
 
@@ -225,6 +234,9 @@ def _pdf_to_pngs(pdf_path: Path, sheet_names: list[str]) -> dict[str, bytes]:
         images = convert_from_path(str(pdf_path), **kwargs)
         result: dict[str, bytes] = {}
         for i, img in enumerate(images):
+            # Skip near-blank pages (< 1% non-white pixels)
+            if _is_blank_image(img):
+                continue
             name = sheet_names[i] if i < len(sheet_names) else f"Page_{i + 1}"
             import io
             buf = io.BytesIO()
