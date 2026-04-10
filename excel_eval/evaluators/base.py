@@ -314,7 +314,21 @@ class BaseEvaluator(abc.ABC):
         if fence_match:
             text = fence_match.group(1).strip()
 
-        data: dict = json.loads(text)
+        # Try standard JSON parse first, fall back to json_repair for
+        # malformed output (common with Chinese/non-English LLM responses)
+        try:
+            data: dict = json.loads(text)
+        except json.JSONDecodeError:
+            try:
+                from json_repair import repair_json
+                repaired = repair_json(text, return_objects=True)
+                if isinstance(repaired, dict):
+                    data = repaired
+                else:
+                    raise ValueError("Repaired JSON is not a dict")
+            except Exception:
+                # If repair also fails, re-raise original error
+                data = json.loads(text)  # will raise JSONDecodeError
 
         # Normalise score
         raw_score = data.get("score")
