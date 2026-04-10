@@ -40,7 +40,7 @@ class FormulaLogicEvaluator(BaseEvaluator):
 
         # CSV content for context
         parts.append("\n## Sheet Content (for reference)")
-        for sheet in data.sheets:
+        for sheet in data.visible_sheets:
             lines = sheet.csv_text.splitlines()
             preview = "\n".join(lines[:30])  # First 30 rows for context
             parts.append(f"### {sheet.name}\n{preview}")

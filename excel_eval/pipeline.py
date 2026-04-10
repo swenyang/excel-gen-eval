@@ -231,12 +231,15 @@ class Pipeline:
                     except Exception as e:
                         logger.warning("Could not load source Excel %s: %s", fc.path, e)
 
+        hidden_sheet_names = {s.name for s in prepared.sheets if s.hidden}
+
         scan = scan_generated_excel(
             csv_texts,
             source_text=grounding,
             source_dataframes=source_dfs if source_dfs else None,
             generated_dataframes=generated_dfs if generated_dfs else None,
             formulas=prepared.formulas,
+            hidden_sheets=hidden_sheet_names if hidden_sheet_names else None,
         )
         prepared.scan_report_text = format_scan_report(scan)
         logger.info("Data scan complete: %d sheet profiles, %d formula errors, comparison=%s",
@@ -286,6 +289,16 @@ class Pipeline:
                     dimension=evaluator.dimension,
                     status=EvalStatus.SKIPPED,
                     feedback="Skipped by configuration",
+                )
+            # Skip screenshot-dependent dimensions when no screenshots available
+            screenshot_required_dims = {"professional_formatting", "chart_appropriateness"}
+            if dim_name in screenshot_required_dims and not data.screenshots:
+                return DimensionResult(
+                    dimension=evaluator.dimension,
+                    score=None,
+                    status=EvalStatus.SUCCESS,
+                    feedback="N/A — no screenshots available (LibreOffice conversion failed). "
+                             "This dimension requires visual inspection and cannot be evaluated from CSV data alone.",
                 )
             async with semaphore:
                 logger.info("  Evaluating: %s", dim_name)

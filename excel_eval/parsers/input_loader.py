@@ -92,16 +92,28 @@ def _load_jsonl(path: Path) -> str:
 
 
 def _load_excel(path: Path) -> str:
-    """Load Excel file as input data, return CSV-like text per sheet."""
-    parts: list[str] = []
-    xls = pd.ExcelFile(path)
+    """Load Excel file as input data, return CSV-like text per sheet.
 
-    for sheet_name in xls.sheet_names:
-        df = pd.read_excel(xls, sheet_name=sheet_name)
-        csv_text = df.to_csv(index=False)
-        parts.append(f"[Sheet: {sheet_name}]\n{csv_text}")
+    Uses the same display-value formatting as excel_parser to ensure
+    source and generated data use identical value representations.
+    """
+    from .excel_parser import parse_excel
 
-    return "\n\n".join(parts)
+    try:
+        parsed = parse_excel(str(path))
+        parts: list[str] = []
+        for sheet in parsed.sheets:
+            parts.append(f"[Sheet: {sheet.name}]\n{sheet.csv_text}")
+        return "\n\n".join(parts)
+    except Exception:
+        # Fallback to pandas if excel_parser fails
+        parts = []
+        xls = pd.ExcelFile(path)
+        for sheet_name in xls.sheet_names:
+            df = pd.read_excel(xls, sheet_name=sheet_name)
+            csv_text = df.to_csv(index=False)
+            parts.append(f"[Sheet: {sheet_name}]\n{csv_text}")
+        return "\n\n".join(parts)
 
 
 def _load_text(path: Path) -> str:

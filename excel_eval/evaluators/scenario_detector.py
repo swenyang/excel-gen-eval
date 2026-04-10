@@ -104,12 +104,12 @@ class ScenarioDetector:
         if data.user_prompt:
             parts.append(f"## User Prompt\n{data.user_prompt}")
 
-        sheet_names = [s.name for s in data.sheets]
+        sheet_names = [s.name for s in data.visible_sheets]
         parts.append(f"## Sheet Names\n{', '.join(sheet_names) if sheet_names else '(none)'}")
 
         # Include a brief content summary (first few rows per sheet)
         summaries: list[str] = []
-        for sheet in data.sheets:
+        for sheet in data.visible_sheets:
             lines = sheet.csv_text.splitlines()
             preview = "\n".join(lines[: _MAX_ROWS_PER_SHEET])
             if len(preview) > _MAX_CONTENT_CHARS:

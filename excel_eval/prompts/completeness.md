@@ -16,6 +16,8 @@ Focus on: **Is the requested content there?** Not whether it's correct, well-for
 
 **Common boundary violation**: Do NOT report data value mismatches, label errors, or incorrect cell values — those belong to Data Accuracy. If a column exists and contains data, it is "present" for Completeness purposes even if some values are wrong.
 
+**Extra or irrelevant content is NOT a completeness issue**: If the generated file contains extra columns, extra sheets, or content not requested by the user, do NOT report it here. Extra content belongs to **Relevance**. Completeness only judges whether *requested* content is missing.
+
 ## Scenario Context
 {{scenario_context}}
 
@@ -26,7 +28,8 @@ For **reporting/analysis** scenarios, a professional workbook should proactively
 - Percentage/ratio columns (e.g., "% of total")
 - Year-over-year or period-over-period comparisons when multi-period data exists
 - Summary/dashboard sheet for multi-sheet workbooks
-- Charts for data with clear trends or comparisons
+
+Note: Charts are evaluated separately in **Chart Appropriateness**. Do NOT penalize or mention the absence of charts in Completeness — chart presence belongs to that dimension.
 
 For **financial modeling** scenarios, also expect:
 - Assumptions clearly documented

@@ -69,20 +69,20 @@ class DataAccuracyEvaluator(BaseEvaluator):
 
         # Generated Excel content — full if fits, sampled if not
         generated_parts: list[str] = []
-        total_gen_tokens = sum(_estimate_tokens(s.csv_text) for s in data.sheets)
+        total_gen_tokens = sum(_estimate_tokens(s.csv_text) for s in data.visible_sheets)
 
         if total_gen_tokens <= generated_budget:
             # Full data fits — send everything
             generated_parts.append(f"## Generated Excel Content — 全量 ({total_gen_tokens} est. tokens)")
-            for sheet in data.sheets:
+            for sheet in data.visible_sheets:
                 generated_parts.append(
                     f"### Sheet: {sheet.name} ({sheet.row_count} rows × {sheet.col_count} cols)\n{sheet.csv_text}"
                 )
         else:
             # Too large — smart sampling per sheet
-            per_sheet_budget = generated_budget // max(len(data.sheets), 1)
+            per_sheet_budget = generated_budget // max(len(data.visible_sheets), 1)
             generated_parts.append(f"## Generated Excel Content — 采样 (原始 {total_gen_tokens} tokens)")
-            for sheet in data.sheets:
+            for sheet in data.visible_sheets:
                 sheet_tokens = _estimate_tokens(sheet.csv_text)
                 if sheet_tokens <= per_sheet_budget:
                     generated_parts.append(

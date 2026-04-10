@@ -71,6 +71,9 @@ class DataComparisonReport:
     match_percentage: float = 0.0
     row_diffs: list[RowDiff] = field(default_factory=list)  # capped at 50
     summary: str = ""
+    match_method: str = "positional"  # "positional" or "key_based"
+    key_column: str | None = None  # the key column used for key-based matching
+    empty_rows_dropped: int = 0  # total empty rows removed from both sides
 
 
 @dataclass
@@ -90,6 +93,7 @@ def scan_generated_excel(
     source_dataframes: dict[str, "pd.DataFrame"] | None = None,
     generated_dataframes: dict[str, "pd.DataFrame"] | None = None,
     formulas: list | None = None,
+    hidden_sheets: set[str] | None = None,
 ) -> ScanReport:
     """Scan generated Excel data and produce an objective report.
 
@@ -100,6 +104,7 @@ def scan_generated_excel(
         generated_dataframes: {sheet_name: DataFrame} from the generated Excel (raw pandas values,
             preferred over CSV for comparison to avoid format mismatches)
         formulas: list of FormulaInfo objects from excel_parser
+        hidden_sheets: set of sheet names that are hidden in the generated workbook
     """
     report = ScanReport()
 
@@ -129,11 +134,16 @@ def scan_generated_excel(
 
     if source_dataframes:
         # Prefer generated_dataframes (raw pandas) over CSV-parsed DataFrames
+        # Exclude hidden sheets — they are not visible to the user
+        _hidden = hidden_sheets or set()
         gen_dfs: dict[str, pd.DataFrame] = {}
         if generated_dataframes:
-            gen_dfs = {name: df for name, df in generated_dataframes.items() if len(df) > 0}
+            gen_dfs = {name: df for name, df in generated_dataframes.items()
+                       if len(df) > 0 and name not in _hidden}
         else:
             for name, csv_text in generated_csv_texts.items():
+                if name in _hidden:
+                    continue
                 df = _try_parse_as_dataframe(csv_text)
                 if df is not None and len(df) > 0:
                     gen_dfs[name] = df
@@ -149,11 +159,12 @@ def scan_generated_excel(
                 name_sim = SequenceMatcher(None, src_name.lower(), gen_name.lower()).ratio()
                 col_overlap = len(set(str(c) for c in src_df.columns) & set(str(c) for c in gen_df.columns))
                 col_total = max(len(set(str(c) for c in src_df.columns) | set(str(c) for c in gen_df.columns)), 1)
-                score = name_sim * 0.4 + (col_overlap / col_total) * 0.6
+                # Column overlap is more important than sheet name similarity
+                score = name_sim * 0.3 + (col_overlap / col_total) * 0.7
                 if score > best_score:
                     best_score = score
                     best_name = gen_name
-            if best_name and best_score >= 0.3:
+            if best_name and best_score >= 0.2:
                 used_gen.add(best_name)
                 comp = _compare_dataframes(src_df, gen_dfs[best_name])
                 comp.summary = f"[{src_name} → {best_name}] {comp.summary}"
@@ -207,7 +218,49 @@ def format_scan_report(report: ScanReport) -> str:
         dc = report.data_comparison
         lines.append(f"\n### Source vs Generated Data Comparison")
         lines.append(f"- Source rows: {dc.source_rows}, Generated rows: {dc.generated_rows}")
+        if dc.empty_rows_dropped > 0:
+            lines.append(f"- Empty rows removed before comparison: {dc.empty_rows_dropped}")
+
+        # Matching method info
+        if dc.match_method == "key_based":
+            lines.append(f"- **Matching method**: Key-based (joined on column `{dc.key_column}`). "
+                         f"Row order differences do NOT affect results.")
+        else:
+            lines.append(f"- **Matching method**: Positional (row-by-row). "
+                         f"⚠ If rows are sorted differently, this will report false differences.")
+
+        # Add context for row count differences
+        if dc.source_rows > 0 and dc.generated_rows > 0:
+            ratio = dc.generated_rows / dc.source_rows
+            if ratio < 0.3:
+                lines.append(
+                    f"- **Note**: Generated file has significantly fewer rows than source "
+                    f"({dc.generated_rows} vs {dc.source_rows}, {ratio:.0%}). "
+                    f"This likely indicates the output is a filtered subset, not a copy of all data. "
+                    f"Row-by-row match rate is NOT meaningful in this case."
+                )
+            elif ratio > 3:
+                lines.append(
+                    f"- **Note**: Generated file has significantly more rows than source "
+                    f"({dc.generated_rows} vs {dc.source_rows}). "
+                    f"The output likely includes calculated/derived rows beyond the source data."
+                )
+
         lines.append(f"- Comparable rows: {dc.total_comparable_rows}, Matched: {dc.matched_rows} ({dc.match_percentage:.1f}%)")
+
+        # Low match rate warning
+        if dc.match_percentage < 50 and dc.total_comparable_rows > 0:
+            if dc.match_method == "positional":
+                lines.append(
+                    f"- ⚠ **Low match rate ({dc.match_percentage:.1f}%) with positional matching.** "
+                    f"This may be caused by different row ordering rather than actual data errors. "
+                    f"Interpret with caution."
+                )
+            else:
+                lines.append(
+                    f"- ⚠ **Low match rate ({dc.match_percentage:.1f}%).** "
+                    f"Many matched rows have value differences."
+                )
 
         if dc.column_mappings:
             lines.append("- Column mappings:")
@@ -301,21 +354,33 @@ def _profile_dataframe(name: str, df: pd.DataFrame) -> SheetProfile:
 
 
 def _compare_dataframes(source_df: pd.DataFrame, gen_df: pd.DataFrame) -> DataComparisonReport:
-    """Compare source and generated DataFrames."""
+    """Compare source and generated DataFrames.
+
+    Steps:
+    1. Drop all-empty rows from both sides
+    2. Match columns by name/value similarity
+    3. Try key-based row matching (find a unique identifier column)
+    4. Fall back to positional matching if no key column found
+    """
+    # Step 0: Drop all-empty rows from both sides
+    src_clean, src_dropped = _drop_empty_rows(source_df)
+    gen_clean, gen_dropped = _drop_empty_rows(gen_df)
+
     report = DataComparisonReport(
-        source_rows=len(source_df),
-        generated_rows=len(gen_df),
+        source_rows=len(src_clean),
+        generated_rows=len(gen_clean),
+        empty_rows_dropped=src_dropped + gen_dropped,
     )
 
     # Step 1: Match columns
-    col_mappings = _match_columns(source_df, gen_df)
+    col_mappings = _match_columns(src_clean, gen_clean)
     report.column_mappings = col_mappings
 
     if not col_mappings:
         report.summary = "No column mappings could be established between source and generated data."
         return report
 
-    # Step 2: Compare mapped columns row-by-row
+    # Step 2: Filter to high-confidence column mappings
     mapped_src_cols = [cm.source_col for cm in col_mappings if cm.confidence >= 0.5]
     mapped_gen_cols = [cm.generated_col for cm in col_mappings if cm.confidence >= 0.5]
 
@@ -323,7 +388,151 @@ def _compare_dataframes(source_df: pd.DataFrame, gen_df: pd.DataFrame) -> DataCo
         report.summary = "Column mappings too low confidence for row comparison."
         return report
 
-    # Use the minimum row count for comparison
+    # Step 3: Try key-based matching
+    key_col = _find_key_column(src_clean, gen_clean, col_mappings)
+    if key_col:
+        report.match_method = "key_based"
+        report.key_column = key_col[0]  # source key column name
+        _compare_by_key(src_clean, gen_clean, key_col, mapped_src_cols, mapped_gen_cols, report)
+    else:
+        report.match_method = "positional"
+        _compare_positional(src_clean, gen_clean, mapped_src_cols, mapped_gen_cols, report)
+
+    return report
+
+
+def _drop_empty_rows(df: pd.DataFrame) -> tuple[pd.DataFrame, int]:
+    """Drop rows where all values are NaN or empty string. Returns (clean_df, dropped_count)."""
+    def _is_cell_empty(val) -> bool:
+        if pd.isna(val):
+            return True
+        return str(val).strip() == ""
+
+    mask = df.apply(lambda row: all(_is_cell_empty(v) for v in row), axis=1)
+    dropped = int(mask.sum())
+    return df[~mask].reset_index(drop=True), dropped
+
+
+def _find_key_column(
+    source_df: pd.DataFrame,
+    gen_df: pd.DataFrame,
+    col_mappings: list[ColumnMapping],
+) -> tuple[str, str] | None:
+    """Find a suitable key column for row matching.
+
+    Returns (source_col, generated_col) if found, None otherwise.
+    Criteria: uniqueness > 90% on both sides.
+    For overlap: check that most generated values exist in source (directional),
+    not symmetric overlap — handles filtered subsets where gen << source.
+    """
+    for cm in col_mappings:
+        if cm.confidence < 0.5:
+            continue
+
+        src_col, gen_col = cm.source_col, cm.generated_col
+
+        src_series = source_df[src_col].dropna()
+        gen_series = gen_df[gen_col].dropna()
+
+        if len(src_series) == 0 or len(gen_series) == 0:
+            continue
+
+        src_uniqueness = src_series.nunique() / len(src_series)
+        gen_uniqueness = gen_series.nunique() / len(gen_series)
+
+        if src_uniqueness < 0.9 or gen_uniqueness < 0.9:
+            continue
+
+        # Directional overlap: what fraction of generated values appear in source?
+        src_vals = set(src_series.astype(str))
+        gen_vals = set(gen_series.astype(str))
+        if len(gen_vals) == 0:
+            continue
+        gen_in_src = len(gen_vals & src_vals) / len(gen_vals)
+
+        if gen_in_src >= 0.5:
+            return (src_col, gen_col)
+
+    return None
+
+
+def _compare_by_key(
+    source_df: pd.DataFrame,
+    gen_df: pd.DataFrame,
+    key_col: tuple[str, str],
+    mapped_src_cols: list[str],
+    mapped_gen_cols: list[str],
+    report: DataComparisonReport,
+) -> None:
+    """Compare DataFrames by joining on a key column."""
+    src_key, gen_key = key_col
+
+    # Build lookup: key_value → row index in generated
+    gen_lookup: dict[str, int] = {}
+    for idx in range(len(gen_df)):
+        key_val = str(gen_df.iloc[idx][gen_key])
+        if key_val not in gen_lookup:
+            gen_lookup[key_val] = idx
+
+    compare_rows = 0
+    matched = 0
+    diffs: list[RowDiff] = []
+
+    for src_idx in range(len(source_df)):
+        key_val = str(source_df.iloc[src_idx][src_key])
+        gen_idx = gen_lookup.get(key_val)
+        if gen_idx is None:
+            continue  # key not found in generated — skip (could be filtered out)
+
+        compare_rows += 1
+        row_match = True
+        for src_col, gen_col in zip(mapped_src_cols, mapped_gen_cols):
+            src_val = source_df.iloc[src_idx].get(src_col)
+            gen_val = gen_df.iloc[gen_idx].get(gen_col)
+
+            if not _values_match(src_val, gen_val):
+                row_match = False
+                if len(diffs) < 50:
+                    diffs.append(RowDiff(
+                        row_index=src_idx + 2,  # 1-indexed + header
+                        column=src_col,
+                        source_value=str(src_val)[:100],
+                        generated_value=str(gen_val)[:100],
+                    ))
+
+        if row_match:
+            matched += 1
+
+    report.total_comparable_rows = compare_rows
+    report.matched_rows = matched
+    report.match_percentage = (matched / compare_rows * 100) if compare_rows > 0 else 0
+    report.row_diffs = diffs
+
+    diff_count = compare_rows - matched
+    unmatched_keys = len(source_df) - compare_rows
+    report.summary = (
+        f"Key-based matching on `{src_key}`: {matched}/{compare_rows} rows match "
+        f"({report.match_percentage:.1f}%). "
+        f"{diff_count} rows have differences across {len(mapped_src_cols)} compared columns."
+    )
+    if unmatched_keys > 0:
+        report.summary += f" {unmatched_keys} source rows had no matching key in generated data."
+
+    # Update value_match_pct on column mappings
+    _update_column_match_pct_keyed(
+        source_df, gen_df, src_key, gen_key, gen_lookup,
+        report.column_mappings, mapped_src_cols, mapped_gen_cols,
+    )
+
+
+def _compare_positional(
+    source_df: pd.DataFrame,
+    gen_df: pd.DataFrame,
+    mapped_src_cols: list[str],
+    mapped_gen_cols: list[str],
+    report: DataComparisonReport,
+) -> None:
+    """Compare DataFrames row-by-row by position (fallback when no key column found)."""
     compare_rows = min(len(source_df), len(gen_df))
     report.total_comparable_rows = compare_rows
 
@@ -360,7 +569,7 @@ def _compare_dataframes(source_df: pd.DataFrame, gen_df: pd.DataFrame) -> DataCo
     )
 
     # Update value_match_pct on column mappings
-    for cm in col_mappings:
+    for cm in report.column_mappings:
         if cm.source_col in mapped_src_cols:
             idx = mapped_src_cols.index(cm.source_col)
             gen_col = mapped_gen_cols[idx]
@@ -370,36 +579,87 @@ def _compare_dataframes(source_df: pd.DataFrame, gen_df: pd.DataFrame) -> DataCo
             )
             cm.value_match_pct = match_count / compare_rows * 100 if compare_rows > 0 else 0
 
-    return report
+
+def _update_column_match_pct_keyed(
+    source_df: pd.DataFrame,
+    gen_df: pd.DataFrame,
+    src_key: str,
+    gen_key: str,
+    gen_lookup: dict[str, int],
+    col_mappings: list[ColumnMapping],
+    mapped_src_cols: list[str],
+    mapped_gen_cols: list[str],
+) -> None:
+    """Update value_match_pct on column mappings for key-based comparison."""
+    for cm in col_mappings:
+        if cm.source_col not in mapped_src_cols:
+            continue
+        idx = mapped_src_cols.index(cm.source_col)
+        gen_col = mapped_gen_cols[idx]
+        match_count = 0
+        total = 0
+        for src_idx in range(len(source_df)):
+            key_val = str(source_df.iloc[src_idx][src_key])
+            gen_idx = gen_lookup.get(key_val)
+            if gen_idx is None:
+                continue
+            total += 1
+            if _values_match(source_df.iloc[src_idx].get(cm.source_col), gen_df.iloc[gen_idx].get(gen_col)):
+                match_count += 1
+        cm.value_match_pct = match_count / total * 100 if total > 0 else 0
 
 
 def _match_columns(source_df: pd.DataFrame, gen_df: pd.DataFrame) -> list[ColumnMapping]:
-    """Match source columns to generated columns using name and value similarity."""
+    """Match source columns to generated columns using name and value similarity.
+
+    Two-pass approach: exact name matches first (to avoid greedy mismatches),
+    then fuzzy/value-based matches for remaining columns.
+    """
     mappings: list[ColumnMapping] = []
     used_gen_cols: set[str] = set()
+    matched_src_cols: set[str] = set()
 
+    # Pass 1: Exact name matches (case-insensitive)
+    gen_col_lower_map: dict[str, str] = {str(c).lower(): str(c) for c in gen_df.columns}
     for src_col in source_df.columns:
+        src_lower = str(src_col).lower()
+        if src_lower in gen_col_lower_map:
+            gen_col = gen_col_lower_map[src_lower]
+            if gen_col in used_gen_cols:
+                continue
+            name_sim = SequenceMatcher(None, src_lower, str(gen_col).lower()).ratio()
+            mappings.append(ColumnMapping(
+                source_col=str(src_col),
+                generated_col=gen_col,
+                match_type="exact_name",
+                confidence=max(name_sim, 0.95),
+            ))
+            used_gen_cols.add(gen_col)
+            matched_src_cols.add(str(src_col))
+
+    # Pass 2: Fuzzy/value-based matches for remaining columns
+    for src_col in source_df.columns:
+        if str(src_col) in matched_src_cols:
+            continue
+
         best_match: ColumnMapping | None = None
         best_score = 0.0
 
         for gen_col in gen_df.columns:
-            if gen_col in used_gen_cols:
+            if str(gen_col) in used_gen_cols:
                 continue
 
-            # Name similarity
             name_sim = SequenceMatcher(None, str(src_col).lower(), str(gen_col).lower()).ratio()
 
-            # Value overlap (for string columns)
             src_vals = set(source_df[src_col].dropna().astype(str).head(100))
             gen_vals = set(gen_df[gen_col].dropna().astype(str).head(100))
             val_overlap = len(src_vals & gen_vals) / max(len(src_vals | gen_vals), 1)
 
-            # Combined score
             score = name_sim * 0.6 + val_overlap * 0.4
 
             if score > best_score:
                 best_score = score
-                match_type = "exact_name" if name_sim > 0.95 else ("fuzzy_name" if name_sim > 0.5 else "value_overlap")
+                match_type = "fuzzy_name" if name_sim > 0.5 else "value_overlap"
                 best_match = ColumnMapping(
                     source_col=str(src_col),
                     generated_col=str(gen_col),

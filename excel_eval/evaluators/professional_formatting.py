@@ -27,6 +27,8 @@ class ProfessionalFormattingEvaluator(BaseEvaluator):
         # Fonts
         parts.append("## Formatting Metadata")
         parts.append(f"### Fonts Used\n{', '.join(fmt.fonts_used) if fmt.fonts_used else 'Default only'}")
+        parts.append(f"### Header Bold\n{'Yes — header row uses bold formatting' if fmt.has_bold_headers else 'No bold headers detected'}")
+        parts.append(f"### Borders\n{fmt.border_summary if fmt.border_summary else 'No borders detected'}")
 
         # Color palette
         if fmt.color_palette:
@@ -54,7 +56,7 @@ class ProfessionalFormattingEvaluator(BaseEvaluator):
 
         # Sheet content for context
         parts.append("\n## Sheet Content (for context)")
-        for sheet in data.sheets:
+        for sheet in data.visible_sheets:
             lines = sheet.csv_text.splitlines()
             preview = "\n".join(lines[:15])
             parts.append(f"### {sheet.name}\n{preview}")

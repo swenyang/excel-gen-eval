@@ -39,19 +39,19 @@ class CompletenessEvaluator(BaseEvaluator):
             remaining -= _estimate_tokens(text)
 
         # Sheet list
-        sheet_names = [s.name for s in data.sheets]
+        sheet_names = [s.name for s in data.visible_sheets]
         parts.append(f"## Sheet List\n{', '.join(sheet_names)}")
 
         # Generated Excel content — full if fits
-        total_gen_tokens = sum(_estimate_tokens(s.csv_text) for s in data.sheets)
+        total_gen_tokens = sum(_estimate_tokens(s.csv_text) for s in data.visible_sheets)
         if total_gen_tokens <= remaining:
             parts.append("## Generated Excel Content — 全量")
-            for sheet in data.sheets:
+            for sheet in data.visible_sheets:
                 parts.append(f"### Sheet: {sheet.name} ({sheet.row_count} rows × {sheet.col_count} cols)\n{sheet.csv_text}")
         else:
             parts.append("## Generated Excel Content — 采样")
-            per_sheet = remaining // max(len(data.sheets), 1)
-            for sheet in data.sheets:
+            per_sheet = remaining // max(len(data.visible_sheets), 1)
+            for sheet in data.visible_sheets:
                 if _estimate_tokens(sheet.csv_text) <= per_sheet:
                     parts.append(f"### {sheet.name} ({sheet.row_count}×{sheet.col_count}) [全量]\n{sheet.csv_text}")
                 else:

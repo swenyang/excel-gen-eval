@@ -26,6 +26,16 @@ logger = logging.getLogger(__name__)
 _PROMPTS_DIR = Path(__file__).resolve().parent.parent / "prompts"
 
 
+def format_sheet_header(sheet, extra: str = "") -> str:
+    """Format a sheet header with visibility annotation."""
+    from excel_eval.models import SheetData
+    hidden_tag = " [HIDDEN SHEET]" if getattr(sheet, "hidden", False) else ""
+    base = f"### Sheet: {sheet.name}{hidden_tag} ({sheet.row_count} rows × {sheet.col_count} cols)"
+    if extra:
+        base += f" {extra}"
+    return base
+
+
 def _downscale_image(img_bytes: bytes, max_width: int = 1200) -> bytes:
     """Downscale a PNG image to fit within max_width, preserving aspect ratio.
 
@@ -224,13 +234,13 @@ class BaseEvaluator(abc.ABC):
                 context_parts.append(f"## Source Data\n{data.grounding_data}")
 
         # Generated data (same smart sizing)
-        for sheet in data.sheets:
+        for sheet in data.visible_sheets:
             lines = sheet.csv_text.split("\n")
             if len(lines) > 60:
                 preview = "\n".join(lines[:30] + [f"[... {len(lines)-45} rows omitted ...]"] + lines[-15:])
             else:
                 preview = sheet.csv_text
-            context_parts.append(f"### Sheet: {sheet.name} ({sheet.row_count} rows × {sheet.col_count} cols)\n{preview}")
+            context_parts.append(f"{format_sheet_header(sheet)}\n{preview}")
 
         # Screenshots context note
         if data.screenshots:

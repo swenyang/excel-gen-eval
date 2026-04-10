@@ -38,7 +38,7 @@ class ChartAppropriatenessEvaluator(BaseEvaluator):
 
         # CSV content for reference
         parts.append("\n## Sheet Content (for data reference)")
-        for sheet in data.sheets:
+        for sheet in data.visible_sheets:
             lines = sheet.csv_text.splitlines()
             preview = "\n".join(lines[:20])
             parts.append(f"### {sheet.name}\n{preview}")

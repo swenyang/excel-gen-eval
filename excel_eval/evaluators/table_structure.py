@@ -21,7 +21,7 @@ class TableStructureEvaluator(BaseEvaluator):
 
         # CSV content
         parts.append("## Sheet Content")
-        for sheet in data.sheets:
+        for sheet in data.visible_sheets:
             parts.append(f"### Sheet: {sheet.name} ({sheet.row_count} rows × {sheet.col_count} cols)")
             parts.append(sheet.csv_text)
 

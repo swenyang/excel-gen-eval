@@ -21,7 +21,7 @@ class SheetOrganizationEvaluator(BaseEvaluator):
 
         # Sheet names and metadata
         parts.append("## Sheet Structure")
-        for i, sheet in enumerate(data.sheets, 1):
+        for i, sheet in enumerate(data.visible_sheets, 1):
             parts.append(f"{i}. **{sheet.name}** — {sheet.row_count} rows × {sheet.col_count} cols")
 
             # Detect sections within each sheet (blank rows = section separators)

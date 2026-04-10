@@ -50,6 +50,7 @@ class SheetData(BaseModel):
     row_count: int
     col_count: int
     truncated: bool = False
+    hidden: bool = False  # True if sheet is hidden or very hidden in Excel
 
 
 class FormulaInfo(BaseModel):
@@ -79,6 +80,9 @@ class FormatInfo(BaseModel):
     conditional_format_rules: list[str] = Field(default_factory=list)
     merged_cell_ranges: list[str] = Field(default_factory=list)
     frozen_panes: dict[str, str] = Field(default_factory=dict)  # sheet → freeze point
+    has_bold_headers: bool = False  # header row uses bold
+    has_borders: bool = False  # cells have border styling
+    border_summary: str = ""  # e.g. "All data cells have thin borders"
 
 
 class PreparedData(BaseModel):
@@ -92,6 +96,11 @@ class PreparedData(BaseModel):
     scan_report_text: str = ""  # Code-level scan report (factual, from data_scanner)
     grounding_data: str = ""
     user_prompt: str = ""
+
+    @property
+    def visible_sheets(self) -> list[SheetData]:
+        """Return only visible (non-hidden) sheets for LLM evaluation."""
+        return [s for s in self.sheets if not s.hidden]
 
 
 # ── Stage 2: Evaluation Results ────────────────────────────────────────────

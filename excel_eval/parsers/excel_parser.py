@@ -79,6 +79,10 @@ def _extract_sheets(excel_path: Path) -> list[SheetData]:
         df_raw = pd.read_excel(xls, sheet_name=sheet_name, header=0)
         row_count, col_count = df_raw.shape
 
+        # Check if sheet is hidden
+        ws_check = wb_display[sheet_name]
+        is_hidden = ws_check.sheet_state in ("hidden", "veryHidden")
+
         # Build display-formatted DataFrame from openpyxl
         ws = wb_display[sheet_name]
         rows_data = []
@@ -120,6 +124,7 @@ def _extract_sheets(excel_path: Path) -> list[SheetData]:
             row_count=row_count,
             col_count=col_count,
             truncated=truncated,
+            hidden=is_hidden,
         ))
 
     wb_display.close()
@@ -273,20 +278,38 @@ def _extract_charts(wb: openpyxl.Workbook) -> list[ChartInfo]:
 
 
 def _extract_formatting(wb: openpyxl.Workbook) -> FormatInfo:
-    """Extract workbook-level formatting metadata."""
+    """Extract workbook-level formatting metadata (visible sheets only)."""
     fonts_used: set[str] = set()
     colors_used: set[str] = set()
     merged_ranges: list[str] = []
     conditional_rules: list[str] = []
     frozen_panes: dict[str, str] = {}
     has_cf = False
+    has_bold_headers = False
+    bordered_cells = 0
+    total_cells = 0
+    border_styles: set[str] = set()
 
     for ws in wb.worksheets:
-        # Fonts and colors
+        if ws.sheet_state in ("hidden", "veryHidden"):
+            continue
+
+        # Check header row for bold
+        if ws.max_row and ws.max_row > 0:
+            for cell in ws[1]:
+                if cell.font and cell.font.bold:
+                    has_bold_headers = True
+                    break
+
+        # Fonts, colors, and borders
         for row in ws.iter_rows(max_row=min(ws.max_row or 0, 100)):
             for cell in row:
+                total_cells += 1
                 if cell.font and cell.font.name:
-                    fonts_used.add(cell.font.name)
+                    # Skip theme fonts (scheme=minor/major) — they resolve to
+                    # different names in openpyxl vs Excel, causing false "inconsistent font" reports
+                    if not cell.font.scheme:
+                        fonts_used.add(cell.font.name)
                 if cell.font and cell.font.color and cell.font.color.rgb:
                     color = str(cell.font.color.rgb)
                     if color != "00000000":
@@ -295,6 +318,16 @@ def _extract_formatting(wb: openpyxl.Workbook) -> FormatInfo:
                     color = str(cell.fill.start_color.rgb)
                     if color != "00000000":
                         colors_used.add(color)
+                # Border detection
+                if cell.border:
+                    has_any = False
+                    for side in ("left", "right", "top", "bottom"):
+                        b = getattr(cell.border, side)
+                        if b and b.style:
+                            has_any = True
+                            border_styles.add(b.style)
+                    if has_any:
+                        bordered_cells += 1
 
         # Merged cells
         for merged_range in ws.merged_cells.ranges:
@@ -309,6 +342,18 @@ def _extract_formatting(wb: openpyxl.Workbook) -> FormatInfo:
         if ws.freeze_panes:
             frozen_panes[ws.title] = str(ws.freeze_panes)
 
+    # Build border summary
+    has_borders = bordered_cells > 0
+    border_summary = ""
+    if total_cells > 0:
+        border_pct = bordered_cells / total_cells * 100
+        if border_pct > 80:
+            border_summary = f"All data cells have borders ({', '.join(sorted(border_styles))} style)"
+        elif border_pct > 20:
+            border_summary = f"Some cells have borders ({border_pct:.0f}%, {', '.join(sorted(border_styles))} style)"
+        elif bordered_cells > 0:
+            border_summary = f"Few cells have borders ({bordered_cells} cells)"
+
     return FormatInfo(
         fonts_used=sorted(fonts_used),
         color_palette=sorted(colors_used)[:20],  # Cap at 20 colors
@@ -316,6 +361,9 @@ def _extract_formatting(wb: openpyxl.Workbook) -> FormatInfo:
         conditional_format_rules=conditional_rules[:50],  # Cap at 50 rules
         merged_cell_ranges=merged_ranges,
         frozen_panes=frozen_panes,
+        has_bold_headers=has_bold_headers,
+        has_borders=has_borders,
+        border_summary=border_summary,
     )
 
 

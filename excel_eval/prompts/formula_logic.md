@@ -32,6 +32,8 @@ You are an expert Excel evaluator. Your task is to assess the **formula usage an
 - **Hardcoded values in a summary section that duplicate calculated values from the main table** — if a summary table restates values from the analysis section, hardcoding is acceptable. Cross-referencing within the same sheet is nice-to-have but not required.
 - **Hardcoded flags or selections based on human judgment** — values like sample selection markers (1/0), priority flags, or category assignments that reflect human decisions rather than computable logic are inherently hardcoded. Do NOT suggest these should be formula-driven.
 - **Parameters given in the user's prompt** — if the prompt specifies values like "90% confidence level" or "10% error rate", these are input parameters and SHOULD be hardcoded. Only penalize if the *calculated result* derived from these parameters is hardcoded instead of using a formula.
+- **Column naming, splitting, or merging decisions** — if the user requested one column but the output splits it into two (or vice versa), this is a structural choice, not a formula logic issue. Do NOT penalize FL for how columns are organized. Column structure belongs to **Completeness** or **Table Structure**.
+- **Extra, empty, or nearly-empty columns** — stray columns with no formulas are not a formula logic concern. Do NOT mention them. They belong to **Relevance** or **Table Structure**.
 
 ## What You Receive
 
