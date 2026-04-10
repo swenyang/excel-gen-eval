@@ -300,16 +300,20 @@ def _extract_formatting(wb: openpyxl.Workbook) -> FormatInfo:
     bordered_cells = 0
     total_cells = 0
     border_styles: set[str] = set()
+    theme_font_name: str | None = None
 
     for ws in wb.worksheets:
         if ws.sheet_state in ("hidden", "veryHidden"):
             continue
 
-        # Check header row for bold
+        # Check first 3 rows for bold (title, header, or subheader)
         if ws.max_row and ws.max_row > 0:
-            for cell in ws[1]:
-                if cell.font and cell.font.bold:
-                    has_bold_headers = True
+            for row_num in range(1, min(4, (ws.max_row or 0) + 1)):
+                for cell in ws[row_num]:
+                    if cell.font and cell.font.bold:
+                        has_bold_headers = True
+                        break
+                if has_bold_headers:
                     break
 
         # Fonts, colors, and borders
@@ -317,9 +321,11 @@ def _extract_formatting(wb: openpyxl.Workbook) -> FormatInfo:
             for cell in row:
                 total_cells += 1
                 if cell.font and cell.font.name:
-                    # Skip theme fonts (scheme=minor/major) — they resolve to
-                    # different names in openpyxl vs Excel, causing false "inconsistent font" reports
-                    if not cell.font.scheme:
+                    if cell.font.scheme:
+                        # Track theme font but don't add duplicates
+                        if theme_font_name is None:
+                            theme_font_name = cell.font.name
+                    else:
                         fonts_used.add(cell.font.name)
                 if cell.font and cell.font.color and cell.font.color.rgb:
                     color = str(cell.font.color.rgb)
@@ -364,6 +370,10 @@ def _extract_formatting(wb: openpyxl.Workbook) -> FormatInfo:
             border_summary = f"Some cells have borders ({border_pct:.0f}%, {', '.join(sorted(border_styles))} style)"
         elif bordered_cells > 0:
             border_summary = f"Few cells have borders ({bordered_cells} cells)"
+
+    # If no explicit fonts found, use the theme font
+    if not fonts_used and theme_font_name:
+        fonts_used.add(theme_font_name)
 
     return FormatInfo(
         fonts_used=sorted(fonts_used),
