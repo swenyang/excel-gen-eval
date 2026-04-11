@@ -38,6 +38,13 @@ class FormulaLogicEvaluator(BaseEvaluator):
         else:
             parts.append("## Formula Inventory\n**No formulas found in this workbook.**")
 
+        # Scan report (includes named range issues, formula error details)
+        if data.scan_report_text:
+            # Extract formula-related sections from scan report
+            for line in data.scan_report_text.split("\n"):
+                if "#REF!" in line or "named range" in line.lower() or "defined name" in line.lower():
+                    parts.append(f"⚠ {line.strip()}")
+
         # CSV content for context
         parts.append("\n## Sheet Content (for reference)")
         for sheet in data.visible_sheets:

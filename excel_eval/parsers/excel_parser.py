@@ -434,7 +434,13 @@ def _extract_cross_sheet_refs(wb: openpyxl.Workbook) -> list[str]:
                     if other_sheet == ws.title:
                         continue
                     # Match: SheetName!Cell, 'Sheet Name'!Cell
-                    patterns = [f"{other_sheet}!", f"'{other_sheet}'!"]
+                    # Excel escapes single quotes in sheet names as ''
+                    escaped_name = other_sheet.replace("'", "''")
+                    patterns = [
+                        f"{other_sheet}!",
+                        f"'{other_sheet}'!",
+                        f"'{escaped_name}'!",
+                    ]
                     for pattern in patterns:
                         if pattern in formula:
                             pair = (ws.title, other_sheet)

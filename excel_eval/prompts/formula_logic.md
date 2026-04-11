@@ -22,6 +22,8 @@ You are an expert Excel evaluator. Your task is to assess the **formula usage an
 - **Formulas vs hardcoded**: Where calculations exist (sums, averages, percentages, lookups), are formulas used? Hardcoded calculated values score poorly even if the value happens to be correct.
 - **Error-free**: Check for #REF!, #NAME?, #DIV/0!, #VALUE!, #N/A errors
 - **Logic soundness**: Are SUM ranges correct? Are VLOOKUP/INDEX-MATCH references appropriate? Are IF conditions logical?
+- **Column reference accuracy**: Verify that formulas reference the correct columns. A formula designed to check column D values but actually referencing column C is a logic error — the formula "works" (no #REF!) but produces wrong results. Spot-check a few complex formulas to ensure cell references match their intended data columns.
+- **Broken named ranges**: If the formula metadata shows #REF! in named range definitions, this is a formula infrastructure error that affects score even if the formulas themselves don't show #REF! at runtime.
 - **Maintainability**: Are named ranges or structured references used? Would changing one input auto-update dependent cells?
 - **Consistency**: Are similar calculations handled the same way across the workbook?
 
