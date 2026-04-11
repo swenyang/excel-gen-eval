@@ -38,6 +38,8 @@ You are an expert Excel evaluator. Your task is to assess the **table structure 
 
 **Thousand separator note**: In the CSV data, numbers with thousand separators appear in quotes (e.g., `"5,923,912"`) while numbers below 1,000 appear without quotes (e.g., `22`). This is standard CSV escaping — the quotes are NOT a formatting inconsistency. Both values use the same Excel number format. Only flag inconsistency if numbers above 1,000 in the same column mix formatted (`1,595`) and unformatted (`1158`) values.
 
+**Cross-dimension boundary — avoid double penalties**: If cells show formula errors (#VALUE!, #REF!, #DIV/0!), those errors are primarily a **Formula & Logic** issue. In Table Structure, only mention formula errors if they *structurally* break the table (e.g., an entire column of #VALUE! making the data unusable). Do NOT re-penalize individual formula errors that are already covered by FL. Focus TS scoring on headers, data types, layout, and formatting — not formula correctness.
+
 ## What You Receive
 
 1. **User's original prompt** — context

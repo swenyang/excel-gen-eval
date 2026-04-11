@@ -34,6 +34,7 @@ You are an expert Excel evaluator. Your task is to assess the **sheet organizati
 - Single sheet named "Sheet1", no sections, all data dumped together → **Score 0-1**
 - Single sheet with descriptive name, data clearly divided into labeled sections (e.g., "Analysis" table, "Summary" table, "Key" legend), each visually separated → **Score 2**
 - Single sheet following a user-provided template, with descriptive name and well-organized labeled sections → **Score 3** (template-following + good organization)
+- Single sheet when the user explicitly requested a single-sheet layout, update-in-place, or side-by-side view, with descriptive name and clear organization → **Score 3** (user-directed design + good execution)
 - Single sheet but the task genuinely needed separation (e.g., 500+ row data + pivot + dashboard all crammed in) → **Score 1**
 
 ## N/A Condition
