@@ -30,6 +30,8 @@ Score N/A (`null`) ONLY if:
 
 **Important distinction**: Score 0 is reserved for cases where charts were **explicitly requested** by the user but completely missing, or where existing charts are broken/misleading. If charts are merely "expected by convention" (e.g., a reporting scenario where charts would be nice to have), the absence should be scored **1-2**, not 0. Many professional Excel reports use tables with text conclusions instead of charts — this is a valid approach.
 
+**Multi-deliverable tasks**: If the user's prompt requests both an Excel workbook AND another deliverable (e.g., PowerPoint, PDF report), and chart/graph/visualization requests are directed at the OTHER deliverable (e.g., "create a PowerPoint with graphics"), do NOT penalize the Excel workbook for missing charts. Score N/A for the Excel file. Only score charts in the Excel if the prompt explicitly or clearly requests charts IN the spreadsheet.
+
 ## Evaluation Guidelines
 
 - **Chart type selection**: Is the type appropriate? (line for trends, bar for comparison, pie for composition, scatter for correlation)
