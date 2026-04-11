@@ -74,8 +74,13 @@ class Pipeline:
         case_config = load_case_config(case_dir)
         logger.info("Evaluating case: %s", case_config.id)
 
+        import time as _time
+        t_start = _time.perf_counter()
+
         # Stage 1: Data Preparation (once)
+        t_s1 = _time.perf_counter()
         prepared = self._stage1_prepare(case_dir, case_config)
+        stage1_ms = int((_time.perf_counter() - t_s1) * 1000)
 
         # Save debug data if output_dir provided
         if output_dir:
@@ -105,6 +110,14 @@ class Pipeline:
         result = self._stage3_aggregate(
             case_config, prepared, scenario, dim_results
         )
+
+        total_ms = int((_time.perf_counter() - t_start) * 1000)
+        result.metadata["performance"] = {
+            "stage1_ms": stage1_ms,
+            "stage2_llm_ms": result.cost.total_latency_ms,
+            "total_wall_ms": total_ms,
+            "screenshots_count": len(prepared.screenshots),
+        }
 
         logger.info(
             "Case %s complete: overall=%.2f (%s)",

@@ -71,10 +71,70 @@ def _print_result(result: EvalResult) -> None:
     console.print(f"[dim]Cost: ${result.cost.total_cost_estimate:.4f} "
                   f"({result.cost.total_input_tokens + result.cost.total_output_tokens} tokens)[/dim]")
 
+    # Performance info
+    perf = result.metadata.get("performance")
+    if perf:
+        s1 = perf.get("stage1_ms", 0) / 1000
+        total = perf.get("total_wall_ms", 0) / 1000
+        screenshots = perf.get("screenshots_count", 0)
+        console.print(f"[dim]Perf: stage1={s1:.1f}s, total={total:.1f}s, screenshots={screenshots}[/dim]")
+
 
 def _generate_reports(results: list[EvalResult], output_dir: Path, formats: list[str]) -> None:
     """Generate reports in requested formats."""
     output_dir.mkdir(parents=True, exist_ok=True)
+
+
+def _print_batch_summary(results: list[EvalResult]) -> None:
+    """Print a summary table for batch evaluation results."""
+    console.print("\n[bold]═══ Batch Summary ═══[/bold]")
+
+    table = Table(title="Per-Case Performance", show_lines=False)
+    table.add_column("Case", style="bold", max_width=35)
+    table.add_column("Score", justify="right")
+    table.add_column("Tokens", justify="right")
+    table.add_column("Cost", justify="right")
+    table.add_column("Stage1", justify="right")
+    table.add_column("Total", justify="right")
+
+    total_tokens = 0
+    total_cost = 0.0
+    total_wall = 0
+    scores = []
+
+    for r in sorted(results, key=lambda x: x.summary.overall_weighted_avg or 0):
+        ow = r.summary.overall_weighted_avg
+        tokens = r.cost.total_input_tokens + r.cost.total_output_tokens
+        cost = r.cost.total_cost_estimate
+        perf = r.metadata.get("performance", {})
+        s1 = perf.get("stage1_ms", 0)
+        wall = perf.get("total_wall_ms", 0)
+
+        total_tokens += tokens
+        total_cost += cost
+        total_wall += wall
+        if ow is not None:
+            scores.append(ow)
+
+        score_str = f"{ow:.2f}" if ow is not None else "N/A"
+        table.add_row(
+            r.case_id,
+            score_str,
+            f"{tokens:,}",
+            f"${cost:.3f}",
+            f"{s1/1000:.1f}s",
+            f"{wall/1000:.1f}s",
+        )
+
+    console.print(table)
+
+    # Totals
+    mean_score = sum(scores) / len(scores) if scores else 0
+    console.print(f"\n[bold]Mean score:[/bold] {mean_score:.2f}")
+    console.print(f"[bold]Total tokens:[/bold] {total_tokens:,}")
+    console.print(f"[bold]Total cost:[/bold] ${total_cost:.2f}")
+    console.print(f"[bold]Total wall time:[/bold] {total_wall/1000:.0f}s ({total_wall/60000:.1f}min)")
+
 
     if "json" in formats:
         path = generate_json_report(results, output_dir / "eval_result.json")
@@ -143,6 +203,10 @@ def run(path, batch, config_path, dims, output_dir, formats, runs, parallel, ver
 
         for r in results:
             _print_result(r)
+
+        # Batch summary with performance stats
+        if batch and len(results) > 1:
+            _print_batch_summary(results)
 
         console.print("\n[bold]Generating reports:[/bold]")
         _generate_reports(results, output_path, format_list)
