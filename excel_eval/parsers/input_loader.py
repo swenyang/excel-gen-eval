@@ -152,6 +152,69 @@ def _load_pdf(path: Path) -> str:
     return "\n\n".join(parts) if parts else f"[PDF file: {path.name} — no extractable text]"
 
 
+def extract_dataframes(path: str | Path) -> dict[str, "pd.DataFrame"]:
+    """Extract DataFrames from a file for data_scanner comparison.
+
+    Supports Excel, CSV/TSV, and PDF (via pdfplumber table extraction).
+    Returns {name: DataFrame} dict. May return empty dict if extraction fails.
+    """
+    path = Path(path)
+    suffix = path.suffix.lower()
+    result: dict[str, pd.DataFrame] = {}
+
+    if suffix in (".xlsx", ".xls"):
+        try:
+            xls = pd.ExcelFile(path)
+            for sheet_name in xls.sheet_names:
+                result[sheet_name] = pd.read_excel(xls, sheet_name=sheet_name)
+        except Exception:
+            pass
+
+    elif suffix in (".csv", ".tsv"):
+        try:
+            sep = "\t" if suffix == ".tsv" else ","
+            df = pd.read_csv(path, sep=sep)
+            if len(df) > 0:
+                result[path.stem] = df
+        except Exception:
+            pass
+
+    elif suffix == ".pdf":
+        try:
+            import pdfplumber
+        except ImportError:
+            return result
+
+        try:
+            all_rows: list[list[str]] = []
+            with pdfplumber.open(path) as pdf:
+                for page in pdf.pages:
+                    tables = page.extract_tables()
+                    for table in tables:
+                        if not table:
+                            continue
+                        for row in table:
+                            all_rows.append([str(cell or "").strip() for cell in row])
+
+            if len(all_rows) >= 2:
+                # Use first row as header, rest as data
+                header = all_rows[0]
+                data = all_rows[1:]
+                df = pd.DataFrame(data, columns=header)
+                # Try numeric conversion
+                for col in df.columns:
+                    try:
+                        df[col] = pd.to_numeric(df[col])
+                    except (ValueError, TypeError):
+                        pass
+                if len(df) > 0:
+                    result[path.stem] = df
+        except Exception:
+            pass
+
+    return result
+
+
 def _load_docx(path: Path) -> str:
     """Load Word document, extracting paragraphs and tables."""
     try:

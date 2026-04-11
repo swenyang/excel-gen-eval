@@ -216,20 +216,21 @@ class Pipeline:
         except Exception as e:
             logger.warning("Could not load generated Excel for scanning: %s", e)
 
-        # Load source DataFrames from input Excel files for precise comparison
+        # Load source DataFrames from input files for precise comparison
         source_dfs: dict[str, pd.DataFrame] = {}
         if case_config.input_files:
+            from .parsers.input_loader import extract_dataframes
             for fc in case_config.input_files:
                 input_path = case_dir / fc.path
-                if input_path.suffix.lower() in (".xlsx", ".xls") and input_path.exists():
+                if input_path.exists():
                     try:
-                        xls = pd.ExcelFile(input_path)
-                        for sheet_name in xls.sheet_names:
-                            source_dfs[sheet_name] = pd.read_excel(xls, sheet_name=sheet_name)
-                        logger.info("Loaded %d source sheet(s) from %s for comparison",
-                                     len(xls.sheet_names), fc.path)
+                        dfs = extract_dataframes(input_path)
+                        if dfs:
+                            source_dfs.update(dfs)
+                            logger.info("Loaded %d source table(s) from %s for comparison",
+                                         len(dfs), fc.path)
                     except Exception as e:
-                        logger.warning("Could not load source Excel %s: %s", fc.path, e)
+                        logger.warning("Could not load source %s: %s", fc.path, e)
 
         hidden_sheet_names = {s.name for s in prepared.sheets if s.hidden}
 
