@@ -48,7 +48,8 @@ You are an expert Excel evaluator. Your task is to assess the **professional for
   - Content being "truncated" or "split across pages" or "requiring multiple screenshots to view"
   - Text fragments appearing at page edges (these are continuations from the previous page, NOT broken layout)
   - "Column width insufficient" based solely on content spanning multiple screenshots
-  - These are ALL PDF print pagination artifacts, NOT Excel formatting issues. Omit them entirely from your evidence.
+  - Words broken across lines at page boundaries (e.g., "Transder" + "mal" for "Transdermal") — this is PDF line wrapping at page edges, NOT an Excel column width problem
+  - These are ALL PDF print pagination artifacts, NOT Excel formatting issues. Omit them entirely from your evidence. If you catch yourself writing about truncation, word breaking, or column width issues that you can ONLY see at screenshot page boundaries, DELETE that evidence item.
 
 ## What You Receive
 

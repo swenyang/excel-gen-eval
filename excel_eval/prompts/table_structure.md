@@ -29,6 +29,7 @@ You are an expert Excel evaluator. Your task is to assess the **table structure 
 - Do tables have clear, descriptive headers with units where applicable?
 - Are data types consistent within columns (no mixed text/numbers)?
 - Are merged cells used appropriately (not breaking data structure)?
+- **Group header rows in data columns**: It is a common and valid Excel pattern to embed category/group labels as rows in the first data column (e.g., "CATEGORY A" in column A followed by items in that category). This is standard practice for grouped reference documents (formularies, catalogs, inventories). Do NOT penalize this pattern as "breaking filter/sort" — it is a deliberate organizational choice, especially when the output follows a user-provided template that uses this pattern. Only penalize if the group headers genuinely make the data unusable.
 - Excel Table feature (Ctrl+T) is a positive signal if present, but do NOT penalize or mention its absence — manual filters and regular data ranges are equally valid
 - Are number formats appropriate (currency, percentage, dates)?
 - Is frozen panes applied for large tables? (only penalize if the table has 20+ data rows OR 20+ columns; smaller tables do not need this)

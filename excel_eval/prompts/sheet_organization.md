@@ -28,10 +28,12 @@ You are an expert Excel evaluator. Your task is to assess the **sheet organizati
 - A single sheet with **clearly separated, well-labeled sections** (e.g., analysis table + summary table + legend) → score **2** minimum, not 1
 - Score **1** is reserved for genuinely confusing or disorganized structures (no clear sections, no labels, data jumbled together)
 - Just because the task *describes* multiple input sources does NOT mean the output must have multiple sheets. Consolidating inputs into one well-organized analysis sheet is a valid approach — evaluate the clarity of the result, not whether it mirrors the input structure
+- **Template-following**: If the user's prompt explicitly instructs to use or follow a provided template, the sheet structure should be evaluated relative to the template. If the template is a single sheet and the output follows that structure, this is a valid design choice — do NOT penalize for "only using one sheet" when the template itself was one sheet. The AI followed instructions.
 
 **Scoring examples for single-sheet workbooks**:
 - Single sheet named "Sheet1", no sections, all data dumped together → **Score 0-1**
 - Single sheet with descriptive name, data clearly divided into labeled sections (e.g., "Analysis" table, "Summary" table, "Key" legend), each visually separated → **Score 2**
+- Single sheet following a user-provided template, with descriptive name and well-organized labeled sections → **Score 3** (template-following + good organization)
 - Single sheet but the task genuinely needed separation (e.g., 500+ row data + pivot + dashboard all crammed in) → **Score 1**
 
 ## N/A Condition
