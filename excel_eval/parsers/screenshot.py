@@ -188,6 +188,27 @@ def _trim_excel_for_screenshot(excel_path: Path, tmpdir: Path) -> Path:
                         last_data_col = max(last_data_col, cell.column)
                         last_data_row = max(last_data_row, cell.row)
 
+            # Unmerge mega-merged cells that extend far beyond the data area
+            # (e.g., A16:XFD16 spanning 16384 columns). These cause LibreOffice
+            # to generate hundreds of horizontal PDF pages.
+            if last_data_col > 0:
+                merges_to_fix = []
+                for merge_range in list(ws.merged_cells.ranges):
+                    if merge_range.max_col > last_data_col * 2:
+                        merges_to_fix.append(merge_range)
+                for merge_range in merges_to_fix:
+                    needs_trim = True
+                    ws.unmerge_cells(str(merge_range))
+                    # Re-merge only the data-area portion if it spans multiple rows
+                    if merge_range.min_row != merge_range.max_row or merge_range.min_col != merge_range.max_col:
+                        new_max_col = min(merge_range.max_col, last_data_col + 1)
+                        if new_max_col > merge_range.min_col:
+                            ws.merge_cells(
+                                start_row=merge_range.min_row, start_column=merge_range.min_col,
+                                end_row=merge_range.max_row, end_column=new_max_col,
+                            )
+                    logger.debug("Fixed mega-merge %s → capped to col %d", merge_range, last_data_col + 1)
+
             # If Excel reports far more columns than have data, trim is needed
             if ws.max_column and last_data_col > 0 and ws.max_column > last_data_col * 2:
                 needs_trim = True

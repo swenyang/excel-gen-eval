@@ -47,6 +47,7 @@ Do NOT deduct for:
 - Poor formatting (that's Professional Formatting)
 - Poor structure (that's Sheet/Table Organization)
 - Source data characteristics
+- **Wrong identifiers, naming deviations, or specification non-compliance** — these are Completeness issues (requirements not met), NOT relevance issues. A column named "EOR-01" instead of "SCRA-01" has wrong naming but the content is still on-topic.
 
 ## What You Receive
 
