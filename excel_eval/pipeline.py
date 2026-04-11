@@ -454,8 +454,8 @@ class Pipeline:
         """Apply cross-dimension consistency adjustments.
 
         Rules:
-        - If Data Accuracy <= 1 (data is fundamentally wrong), cap Completeness
-          at DA+1 because "complete but wrong" is misleading.
+        - If Data Accuracy = 0 (data is fully fabricated/hallucinated), cap
+          Completeness at max 2 because "complete but fabricated" is misleading.
         - If Formula & Logic = 0 (critical formula errors), cap Data Accuracy
           at max 2 because formula errors cascade into data errors.
         """
@@ -463,15 +463,15 @@ class Pipeline:
         comp = dim_results.get(DimensionName.COMPLETENESS)
         fl = dim_results.get(DimensionName.FORMULA_LOGIC)
 
-        if da and da.score is not None and da.score <= 1:
-            # Data is fundamentally wrong — Completeness shouldn't be high
-            if comp and comp.score is not None and comp.score > da.score + 1:
+        if da and da.score is not None and da.score == 0:
+            # Data is fully fabricated — Completeness shouldn't be high
+            if comp and comp.score is not None and comp.score > 2:
                 old = comp.score
-                comp.score = da.score + 1
+                comp.score = 2
                 comp.feedback += (
                     f" [Consistency adjustment: Completeness capped from {old} to "
-                    f"{comp.score} because Data Accuracy is {da.score} — content "
-                    f"that is present but incorrect has limited value.]"
+                    f"{comp.score} because Data Accuracy is 0 — fabricated content "
+                    f"has limited value.]"
                 )
 
         if fl and fl.score is not None and fl.score == 0:
