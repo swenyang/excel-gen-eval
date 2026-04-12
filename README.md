@@ -588,6 +588,12 @@ excel-eval run PATH [OPTIONS]
 | `--parallel N` | 批量模式下并行评估的用例数（默认 1） |
 | `-v, --verbose` | 详细日志输出 |
 
+**性能说明**：
+- 每个用例评估耗时约 1-3 分钟（视数据大小和 LLM 响应速度）
+- 批量模式下每个用例有 10 分钟超时保护，超时自动跳过
+- 每个用例的输出包含性能指标：stage1 耗时、总耗时、token 消耗和成本
+- 批量模式结束时打印汇总表，按分数排序显示所有用例的开销
+
 ### excel-eval dimensions
 
 列出所有可用的评估维度。
@@ -625,6 +631,13 @@ print(f"场景置信度: {result.scenario.confidence}")
 # 逐维度查看
 for dim_name, dim_result in result.dimensions.items():
     print(f"  {dim_name}: {dim_result.score}/4 — {dim_result.feedback[:80]}")
+
+# 性能与成本
+perf = result.metadata.get("performance", {})
+print(f"Stage1 耗时: {perf.get('stage1_ms', 0)/1000:.1f}s")
+print(f"总耗时: {perf.get('total_wall_ms', 0)/1000:.1f}s")
+print(f"Token: {result.cost.total_input_tokens + result.cost.total_output_tokens}")
+print(f"成本: ${result.cost.total_cost_estimate:.3f}")
 ```
 
 ---
