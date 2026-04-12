@@ -136,6 +136,10 @@ def _print_batch_summary(results: list[EvalResult]) -> None:
     console.print(f"[bold]Total wall time:[/bold] {total_wall/1000:.0f}s ({total_wall/60000:.1f}min)")
 
 
+def _generate_reports(results: list[EvalResult], output_dir: Path, formats: list[str]) -> None:
+    """Generate reports in requested formats."""
+    output_dir.mkdir(parents=True, exist_ok=True)
+
     if "json" in formats:
         path = generate_json_report(results, output_dir / "eval_result.json")
         console.print(f"  [bold]JSON:[/bold] {path}")
