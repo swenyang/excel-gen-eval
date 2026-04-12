@@ -155,11 +155,16 @@ class Pipeline:
             results: list[EvalResult] = []
             for case_dir in cases:
                 try:
-                    result = await self.evaluate(
-                        case_dir, num_runs=num_runs,
-                        output_dir=_case_output_dir(case_dir),
+                    result = await asyncio.wait_for(
+                        self.evaluate(
+                            case_dir, num_runs=num_runs,
+                            output_dir=_case_output_dir(case_dir),
+                        ),
+                        timeout=600,  # 10 min max per case
                     )
                     results.append(result)
+                except asyncio.TimeoutError:
+                    logger.error("Case %s timed out after 600s", case_dir.name)
                 except Exception as exc:
                     logger.exception("Failed to evaluate case %s: %s", case_dir, exc)
             return results
