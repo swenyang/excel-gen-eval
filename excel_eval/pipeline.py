@@ -133,11 +133,16 @@ class Pipeline:
     ) -> list[EvalResult]:
         """Evaluate all test cases under root_dir.
 
+        Results are saved incrementally — each completed case is immediately
+        written to ``output_dir/results/{case_id}.json``. On restart, already
+        completed cases are loaded from disk and skipped, enabling resumable
+        batch runs.
+
         Args:
             root_dir: Directory containing test case subdirectories.
             num_runs: Number of runs per case (>1 uses median).
             parallel: Number of cases to evaluate concurrently.
-            output_dir: If provided, saves debug data per case.
+            output_dir: If provided, saves debug data and incremental results.
         """
         cases = discover_cases(root_dir)
         if not cases:
@@ -151,42 +156,77 @@ class Pipeline:
                 return None
             return Path(output_dir) / "debug" / case_dir.name
 
+        # Incremental results directory
+        results_dir = Path(output_dir) / "results" if output_dir else None
+        if results_dir:
+            results_dir.mkdir(parents=True, exist_ok=True)
+
+        # Load already-completed results (for resume support)
+        completed: dict[str, EvalResult] = {}
+        if results_dir:
+            import json as _json
+            for result_file in results_dir.glob("*.json"):
+                try:
+                    with open(result_file, "r", encoding="utf-8") as f:
+                        data = _json.load(f)
+                    er = EvalResult(**data)
+                    completed[er.case_id] = er
+                except Exception as exc:
+                    logger.warning("Could not load cached result %s: %s", result_file, exc)
+            if completed:
+                logger.info("Resuming: %d case(s) already completed, %d remaining",
+                            len(completed), len(cases) - len(completed))
+
+        def _save_result(result: EvalResult) -> None:
+            """Save a single case result to disk immediately."""
+            if not results_dir:
+                return
+            import json as _json
+            result_path = results_dir / f"{result.case_id}.json"
+            with open(result_path, "w", encoding="utf-8") as f:
+                _json.dump(
+                    _json.loads(result.model_dump_json()),
+                    f, indent=2, ensure_ascii=False, default=str,
+                )
+
+        async def _eval_one(case_dir: Path) -> EvalResult | None:
+            """Evaluate a single case with timeout, save result immediately."""
+            # Skip already-completed cases
+            case_id = case_dir.name
+            if case_id in completed:
+                logger.info("Skipping %s (already completed)", case_id)
+                return completed[case_id]
+
+            try:
+                result = await asyncio.wait_for(
+                    self.evaluate(
+                        case_dir, num_runs=num_runs,
+                        output_dir=_case_output_dir(case_dir),
+                    ),
+                    timeout=600,  # 10 min max per case
+                )
+                _save_result(result)
+                return result
+            except asyncio.TimeoutError:
+                logger.error("Case %s timed out after 600s", case_dir.name)
+                return None
+            except Exception as exc:
+                logger.exception("Failed to evaluate case %s: %s", case_dir, exc)
+                return None
+
         if parallel <= 1:
             results: list[EvalResult] = []
             for case_dir in cases:
-                try:
-                    result = await asyncio.wait_for(
-                        self.evaluate(
-                            case_dir, num_runs=num_runs,
-                            output_dir=_case_output_dir(case_dir),
-                        ),
-                        timeout=600,  # 10 min max per case
-                    )
+                result = await _eval_one(case_dir)
+                if result is not None:
                     results.append(result)
-                except asyncio.TimeoutError:
-                    logger.error("Case %s timed out after 600s", case_dir.name)
-                except Exception as exc:
-                    logger.exception("Failed to evaluate case %s: %s", case_dir, exc)
             return results
 
         semaphore = asyncio.Semaphore(parallel)
 
         async def _run_one(case_dir: Path) -> EvalResult | None:
             async with semaphore:
-                try:
-                    return await asyncio.wait_for(
-                        self.evaluate(
-                            case_dir, num_runs=num_runs,
-                            output_dir=_case_output_dir(case_dir),
-                        ),
-                        timeout=600,  # 10 min max per case
-                    )
-                except asyncio.TimeoutError:
-                    logger.error("Case %s timed out after 600s", case_dir.name)
-                    return None
-                except Exception as exc:
-                    logger.exception("Failed to evaluate case %s: %s", case_dir, exc)
-                    return None
+                return await _eval_one(case_dir)
 
         tasks = [_run_one(case_dir) for case_dir in cases]
         raw_results = await asyncio.gather(*tasks)
