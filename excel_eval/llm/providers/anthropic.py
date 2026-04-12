@@ -38,7 +38,11 @@ class AnthropicLLMClient(BaseLLMClient):
             api_key = os.environ.get(config.api_key_env)
         self._client = anthropic.AsyncAnthropic(
             api_key=api_key,
-            timeout=config.timeout,
+            timeout=anthropic.Timeout(
+                timeout=config.timeout,      # total timeout (default 120s)
+                connect=30.0,                # connect timeout
+                read=config.timeout,         # per-read timeout (prevents streaming hangs)
+            ),
         )
 
     # ── Public API ─────────────────────────────────────────────────────
