@@ -169,10 +169,16 @@ class Pipeline:
         async def _run_one(case_dir: Path) -> EvalResult | None:
             async with semaphore:
                 try:
-                    return await self.evaluate(
-                        case_dir, num_runs=num_runs,
-                        output_dir=_case_output_dir(case_dir),
+                    return await asyncio.wait_for(
+                        self.evaluate(
+                            case_dir, num_runs=num_runs,
+                            output_dir=_case_output_dir(case_dir),
+                        ),
+                        timeout=600,  # 10 min max per case
                     )
+                except asyncio.TimeoutError:
+                    logger.error("Case %s timed out after 600s", case_dir.name)
+                    return None
                 except Exception as exc:
                     logger.exception("Failed to evaluate case %s: %s", case_dir, exc)
                     return None
