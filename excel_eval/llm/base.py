@@ -6,7 +6,7 @@ import abc
 import asyncio
 import json
 import logging
-import time
+import re
 
 from pydantic import BaseModel, Field
 
@@ -42,6 +42,7 @@ class BaseLLMClient(abc.ABC):
         self,
         messages: list[dict],
         images: list[bytes] | None = None,
+        json_schema: dict | None = None,
     ) -> LLMResponse:
         """Send a chat completion request and return the response."""
 
@@ -51,6 +52,7 @@ class BaseLLMClient(abc.ABC):
         images: list[bytes] | None = None,
         max_retries: int | None = None,
         json_mode: bool = False,
+        json_schema: dict | None = None,
     ) -> LLMResponse:
         """Call *complete* with exponential-backoff retry and optional JSON
         validation.
@@ -59,9 +61,11 @@ class BaseLLMClient(abc.ABC):
         ------------
         * API errors (rate-limit, 5xx, timeout, connection) are retried up to
           *max_retries* times with exponential backoff (2 s, 8 s, 32 s, …).
-        * When *json_mode* is ``True`` the raw content is validated as JSON.
-          If parsing fails, up to 2 additional attempts are made with an extra
-          user message asking for valid JSON.
+        * When *json_schema* is provided, the provider uses constrained
+          decoding (e.g. Anthropic ``output_config``) to guarantee valid JSON.
+        * When *json_mode* is ``True`` (without schema), the raw content is
+          validated as JSON. If parsing fails, up to 2 additional attempts are
+          made with an extra user message asking for valid JSON.
         """
         if max_retries is None:
             max_retries = self.config.max_retries
@@ -70,7 +74,7 @@ class BaseLLMClient(abc.ABC):
 
         for attempt in range(max_retries):
             try:
-                response = await self.complete(messages, images)
+                response = await self.complete(messages, images, json_schema=json_schema)
                 break
             except Exception as exc:
                 last_exc = exc
@@ -88,8 +92,8 @@ class BaseLLMClient(abc.ABC):
         else:
             raise last_exc  # type: ignore[misc]
 
-        # ── JSON validation retries ────────────────────────────────────
-        if json_mode:
+        # ── JSON validation retries (only when no schema enforcement) ──
+        if json_mode and not json_schema:
             json_retry_msg = {
                 "role": "user",
                 "content": (
@@ -99,7 +103,7 @@ class BaseLLMClient(abc.ABC):
             }
             for json_attempt in range(2):
                 try:
-                    json.loads(response.content)
+                    json.loads(self._strip_markdown_fences(response.content))
                     break
                 except (json.JSONDecodeError, ValueError):
                     logger.warning(
@@ -114,6 +118,17 @@ class BaseLLMClient(abc.ABC):
                     response = await self.complete(retry_messages, images)
 
         return response
+
+    @staticmethod
+    def _strip_markdown_fences(text: str) -> str:
+        """Strip markdown code fences before JSON parsing."""
+        text = text.strip()
+        fence_match = re.search(
+            r"```(?:json)?\s*\n?(.*?)\n?\s*```", text, re.DOTALL
+        )
+        if fence_match:
+            return fence_match.group(1).strip()
+        return text
 
     # ── Helpers ─────────────────────────────────────────────────────────
 

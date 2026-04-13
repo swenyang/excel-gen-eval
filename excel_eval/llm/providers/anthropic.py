@@ -51,6 +51,7 @@ class AnthropicLLMClient(BaseLLMClient):
         self,
         messages: list[dict],
         images: list[bytes] | None = None,
+        json_schema: dict | None = None,
     ) -> LLMResponse:
         system_text, api_messages = self._convert_messages(messages, images)
 
@@ -63,6 +64,13 @@ class AnthropicLLMClient(BaseLLMClient):
         if system_text:
             kwargs["system"] = system_text
 
+        if json_schema:
+            kwargs["output_config"] = {
+                "format": {
+                    "type": "json_schema",
+                    "schema": json_schema,
+                }
+            }
         t0 = time.perf_counter()
         response = await self._client.messages.create(**kwargs)
         latency_ms = int((time.perf_counter() - t0) * 1000)
