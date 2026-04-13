@@ -12,10 +12,12 @@ You are an expert Excel evaluator. Your task is to assess the **formula usage an
 | Score | Criteria |
 |-------|----------|
 | **0** | No formulas; all values hardcoded, or formulas have critical errors (#REF!, #NAME?, #DIV/0!) |
-| **1** | Few formulas, many hardcoded values; some formula errors present |
-| **2** | Formulas used for key calculations but inconsistently; minor errors |
+| **1** | Few formulas AND formula errors present; or zero formulas for a task that clearly requires calculations |
+| **2** | Few formulas but all correct and error-free; key calculations exist but some are hardcoded |
 | **3** | Good formula usage with sound logic; only minor issues |
 | **4** | Excellent formula design; dynamic, error-free, maintainable |
+
+**Scoring clarification**: The distinction between 1 and 2 hinges on **correctness**, not quantity. If a workbook has only a handful of formulas but they are all correct and error-free, score **2 minimum** — not 1. Score 1 requires either formula errors OR zero formulas for a task that genuinely needs them (e.g., a budget with no SUM formulas). For planning/tracking/assignment tasks where most values are inherently manual (e.g., assigning vendors to tables, scheduling people to shifts), having few formulas is expected — score based on whether the formulas that DO exist are correct.
 
 ## Evaluation Guidelines
 
