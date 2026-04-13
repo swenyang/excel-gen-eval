@@ -362,7 +362,13 @@ def _compare_dataframes(source_df: pd.DataFrame, gen_df: pd.DataFrame) -> DataCo
     3. Try key-based row matching (find a unique identifier column)
     4. Fall back to positional matching if no key column found
     """
-    # Step 0: Drop all-empty rows from both sides
+    # Step 0: Normalize column names to strings (dates, ints etc. cause KeyErrors)
+    source_df = source_df.copy()
+    source_df.columns = [str(c) for c in source_df.columns]
+    gen_df = gen_df.copy()
+    gen_df.columns = [str(c) for c in gen_df.columns]
+
+    # Step 0b: Drop all-empty rows from both sides
     src_clean, src_dropped = _drop_empty_rows(source_df)
     gen_clean, gen_dropped = _drop_empty_rows(gen_df)
 
