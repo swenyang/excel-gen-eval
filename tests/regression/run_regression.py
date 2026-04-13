@@ -40,9 +40,6 @@ def main():
         print()
 
     config = load_global_config(str(config_path))
-        spec = yaml.safe_load(f)
-
-    config = load_global_config(str(config_path))
     pipeline = Pipeline(config)
 
     failures = []

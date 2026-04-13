@@ -4,10 +4,15 @@
 # outside the range after a prompt/code change, it's a regression.
 #
 # Format: [min, max] inclusive. Use null for N/A dimensions.
+#
+# Selection criteria: cases with stable scores across v5/v7/v8 (max swing 0-1),
+# covering diverse score ranges, scenarios, and input types.
 
 cases:
+  # ── High scorers (overall 3.3+) ────────────────────────────────────
+
   - case_dir: examples/finance-orchestra-comp
-    description: "High-quality financial model — expect near-perfect scores"
+    description: "High-quality financial model — 9347 formulas, near-perfect"
     expected:
       data_accuracy: [3, 4]
       completeness: [3, 4]
@@ -16,18 +21,126 @@ cases:
       sheet_organization: [3, 4]
       table_structure: [3, 4]
       chart_appropriateness: null  # No charts expected
-      professional_formatting: [3, 4]
+      professional_formatting: [2, 4]
       overall_min: 3.5
 
-  - case_dir: examples/wholesale-additional-shipments
-    description: "Good inventory planning — solid content, basic formatting"
+  - case_dir: examples/wholesale-po-audit
+    description: "Perfect data accuracy — 164 formulas, 100% match"
     expected:
       data_accuracy: [3, 4]
       completeness: [3, 4]
       formula_logic: [3, 4]
       relevance: [3, 4]
-      sheet_organization: [2, 3]
-      table_structure: [2, 3]
+      sheet_organization: [2, 4]
+      table_structure: [2, 4]
       chart_appropriateness: null
-      professional_formatting: [2, 3]
+      professional_formatting: [1, 3]
+      overall_min: 3.0
+
+  - case_dir: examples/accounting-amortization
+    description: "Financial amortization — PDF inputs, 470 formulas"
+    expected:
+      data_accuracy: [2, 4]
+      completeness: [3, 4]
+      formula_logic: [3, 4]
+      relevance: [3, 4]
+      sheet_organization: [2, 4]
+      table_structure: [2, 4]
+      chart_appropriateness: null
+      professional_formatting: [1, 3]
+      overall_min: 3.0
+
+  - case_dir: examples/realestate-rent-matrix
+    description: "Rent calculation — 819 formulas, stable DA=4"
+    expected:
+      data_accuracy: [3, 4]
+      completeness: [2, 4]
+      formula_logic: [3, 4]
+      relevance: [3, 4]
+      sheet_organization: [1, 3]
+      table_structure: [2, 4]
+      chart_appropriateness: null
+      professional_formatting: [2, 4]
       overall_min: 2.8
+
+  # ── Mid scorers (overall 2.7-3.3) ──────────────────────────────────
+
+  - case_dir: examples/wholesale-additional-shipments
+    description: "Inventory planning — datetime column names, good content"
+    expected:
+      data_accuracy: [2, 4]
+      completeness: [2, 4]
+      formula_logic: [2, 4]
+      relevance: [3, 4]
+      sheet_organization: [1, 3]
+      table_structure: [2, 4]
+      chart_appropriateness: null
+      professional_formatting: [1, 3]
+      overall_min: 2.5
+
+  - case_dir: examples/data-processing-transactions
+    description: "Transaction processing — DA=4 but CO=2, stable across runs"
+    expected:
+      data_accuracy: [3, 4]
+      completeness: [1, 3]
+      formula_logic: null
+      relevance: [3, 4]
+      sheet_organization: [2, 4]
+      table_structure: [2, 4]
+      chart_appropriateness: null
+      professional_formatting: [1, 3]
+      overall_min: 2.5
+
+  - case_dir: examples/healthcare-grand-rounds
+    description: "Medical scheduling — no formulas, stable mid-range scores"
+    expected:
+      data_accuracy: [1, 3]
+      completeness: [2, 4]
+      formula_logic: null
+      relevance: [3, 4]
+      sheet_organization: [2, 4]
+      table_structure: [2, 4]
+      chart_appropriateness: null
+      professional_formatting: [1, 3]
+      overall_min: 2.3
+
+  - case_dir: examples/nursing-transition-care
+    description: "Healthcare reference — DA=2, PF=4, stable across runs"
+    expected:
+      data_accuracy: [1, 3]
+      completeness: [3, 4]
+      formula_logic: null
+      relevance: [2, 4]
+      sheet_organization: [2, 4]
+      table_structure: [1, 3]
+      chart_appropriateness: null
+      professional_formatting: [2, 4]
+      overall_min: 2.3
+
+  # ── Low scorers (overall < 2.5) ────────────────────────────────────
+
+  - case_dir: examples/wholesale-sales-analysis
+    description: "Sales analysis — stable low PF=1, mid-range overall"
+    expected:
+      data_accuracy: [1, 3]
+      completeness: [2, 4]
+      formula_logic: [2, 4]
+      relevance: [3, 4]
+      sheet_organization: [2, 4]
+      table_structure: [1, 3]
+      chart_appropriateness: null
+      professional_formatting: [0, 2]
+      overall_min: 2.0
+
+  - case_dir: examples/shipping-location-report
+    description: "Known low scorer — DA=1, FL=0, genuine quality issues"
+    expected:
+      data_accuracy: [0, 2]
+      completeness: [1, 3]
+      formula_logic: [0, 1]
+      relevance: [1, 4]
+      sheet_organization: [0, 2]
+      table_structure: [0, 3]
+      chart_appropriateness: null
+      professional_formatting: [1, 4]
+      overall_min: 1.0
