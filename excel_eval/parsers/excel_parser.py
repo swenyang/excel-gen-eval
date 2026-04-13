@@ -40,17 +40,35 @@ def parse_excel(
     if not excel_path.exists():
         raise FileNotFoundError(f"Excel file not found: {excel_path}")
 
-    wb = openpyxl.load_workbook(str(excel_path), data_only=False)
-    wb_values = openpyxl.load_workbook(str(excel_path), data_only=True)
+    # Check for oversized pivot caches or other bloat that causes openpyxl
+    # to hang. If the uncompressed xlsx content exceeds a threshold, skip
+    # features that require full (non-read_only) workbook parsing.
+    heavy = _is_heavy_xlsx(excel_path)
+    if heavy:
+        import logging
+        logging.getLogger(__name__).warning(
+            "Large xlsx internals detected (%s), using lightweight parsing", excel_path.name
+        )
 
-    sheets = _extract_sheets(excel_path)
-    formulas = _extract_formulas(wb, wb_values)
-    charts = _extract_charts(wb)
-    formatting = _extract_formatting(wb)
-    cross_refs = _extract_cross_sheet_refs(wb)
-
-    wb.close()
-    wb_values.close()
+    if heavy:
+        # Lightweight path: skip formatting/cross-refs that need full parse
+        wb_values = openpyxl.load_workbook(str(excel_path), data_only=True, read_only=True)
+        sheets = _extract_sheets(excel_path, lightweight=True)
+        formulas = []  # Can't extract formulas in read_only
+        charts = []
+        formatting = FormatInfo()
+        cross_refs = []
+        wb_values.close()
+    else:
+        wb = openpyxl.load_workbook(str(excel_path), data_only=False)
+        wb_values = openpyxl.load_workbook(str(excel_path), data_only=True)
+        sheets = _extract_sheets(excel_path)
+        formulas = _extract_formulas(wb, wb_values)
+        charts = _extract_charts(wb)
+        formatting = _extract_formatting(wb)
+        cross_refs = _extract_cross_sheet_refs(wb)
+        wb.close()
+        wb_values.close()
 
     return PreparedData(
         sheets=sheets,
@@ -64,46 +82,72 @@ def parse_excel(
     )
 
 
-def _extract_sheets(excel_path: Path) -> list[SheetData]:
-    """Export each sheet to CSV text using Excel's display format.
+def _is_heavy_xlsx(path: Path, threshold_mb: float = 20.0) -> bool:
+    """Check if an xlsx file has oversized internal components.
 
-    Reads cell number_format via openpyxl to produce values matching
-    what the user sees in Excel, avoiding CSV export artifacts like
-    datetime timestamps or floating-point noise.
+    Some AI-generated Excel files contain huge pivot caches (50-100MB+)
+    that cause openpyxl to hang when loaded in non-read_only mode.
     """
-    wb_display = openpyxl.load_workbook(str(excel_path), data_only=True)
+    import zipfile
+    try:
+        with zipfile.ZipFile(path) as zf:
+            for info in zf.infolist():
+                if info.file_size > threshold_mb * 1024 * 1024:
+                    return True
+    except Exception:
+        pass
+    return False
+
+
+def _extract_sheets(excel_path: Path, lightweight: bool = False) -> list[SheetData]:
+    """Export each sheet to CSV text.
+
+    When *lightweight* is False (default), reads cell number_format via
+    openpyxl (full mode) for display formatting.  When True, uses
+    openpyxl read_only mode which skips pivot caches and other heavy
+    internal data but still preserves number_format for display values.
+    """
     xls = pd.ExcelFile(excel_path)
     sheets: list[SheetData] = []
+
+    wb_display = openpyxl.load_workbook(
+        str(excel_path), data_only=True, read_only=lightweight,
+    )
 
     for sheet_name in xls.sheet_names:
         df_raw = pd.read_excel(xls, sheet_name=sheet_name, header=0)
         row_count, col_count = df_raw.shape
 
         # Check if sheet is hidden
-        ws_check = wb_display[sheet_name]
-        is_hidden = ws_check.sheet_state in ("hidden", "veryHidden")
+        is_hidden = False
+        if sheet_name in wb_display.sheetnames:
+            ws_check = wb_display[sheet_name]
+            is_hidden = getattr(ws_check, 'sheet_state', 'visible') in ("hidden", "veryHidden")
 
         # Build display-formatted DataFrame from openpyxl
-        ws = wb_display[sheet_name]
-        rows_data = []
-        headers = []
-        for row_idx, row in enumerate(ws.iter_rows(values_only=False)):
-            if row_idx == 0:
-                headers = [_display_value(cell) for cell in row]
-                # Deduplicate headers (pandas requires unique column names)
-                seen: dict[str, int] = {}
-                for j, h in enumerate(headers):
-                    if not h:
-                        headers[j] = f"Column_{j+1}"
-                    if headers[j] in seen:
-                        seen[headers[j]] += 1
-                        headers[j] = f"{headers[j]}_{seen[headers[j]]}"
-                    else:
-                        seen[headers[j]] = 0
-                continue
-            rows_data.append([_display_value(cell) for cell in row])
+        if sheet_name in wb_display.sheetnames:
+            ws = wb_display[sheet_name]
+            rows_data = []
+            headers = []
+            for row_idx, row in enumerate(ws.iter_rows(values_only=False)):
+                if row_idx == 0:
+                    headers = [_display_value(cell) for cell in row]
+                    # Deduplicate headers (pandas requires unique column names)
+                    seen: dict[str, int] = {}
+                    for j, h in enumerate(headers):
+                        if not h:
+                            headers[j] = f"Column_{j+1}"
+                        if headers[j] in seen:
+                            seen[headers[j]] += 1
+                            headers[j] = f"{headers[j]}_{seen[headers[j]]}"
+                        else:
+                            seen[headers[j]] = 0
+                    continue
+                rows_data.append([_display_value(cell) for cell in row])
 
-        df = pd.DataFrame(rows_data, columns=headers) if headers else df_raw
+            df = pd.DataFrame(rows_data, columns=headers) if headers else df_raw
+        else:
+            df = df_raw
 
         # Drop trailing all-empty columns (openpyxl may include 16384 cols due to formatting)
         if len(df.columns) > 0:
