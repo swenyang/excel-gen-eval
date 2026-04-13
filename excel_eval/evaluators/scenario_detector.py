@@ -9,6 +9,7 @@ import time
 from pathlib import Path
 
 from excel_eval.llm.base import BaseLLMClient
+from excel_eval.llm.schemas import SCENARIO_DETECT_SCHEMA
 from excel_eval.models import PreparedData, Scenario, ScenarioResult
 
 logger = logging.getLogger(__name__)
@@ -37,7 +38,8 @@ class ScenarioDetector:
             ]
 
             response = await self.llm_client.complete_with_retry(
-                messages, json_mode=True
+                messages, json_mode=True,
+                json_schema=SCENARIO_DETECT_SCHEMA,
             )
 
             parsed = self._parse_response(response.content)

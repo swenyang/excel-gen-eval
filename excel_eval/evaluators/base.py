@@ -13,6 +13,7 @@ from pathlib import Path
 from PIL import Image
 
 from excel_eval.llm.base import BaseLLMClient, LLMResponse
+from excel_eval.llm.schemas import DIMENSION_EVAL_SCHEMA, EVIDENCE_VERIFY_SCHEMA
 from excel_eval.models import (
     DimensionName,
     DimensionResult,
@@ -151,7 +152,8 @@ class BaseEvaluator(abc.ABC):
                     messages[-1]["content"] += screenshot_note
 
             response: LLMResponse = await self.llm_client.complete_with_retry(
-                messages, images=images, json_mode=True
+                messages, images=images, json_mode=True,
+                json_schema=DIMENSION_EVAL_SCHEMA,
             )
 
             parsed = self._parse_response(response.content)
@@ -270,10 +272,14 @@ class BaseEvaluator(abc.ABC):
             response = await self.llm_client.complete_with_retry(
                 [{"role": "user", "content": verify_prompt}],
                 json_mode=True,
+                json_schema=EVIDENCE_VERIFY_SCHEMA,
             )
-            results = json.loads(
-                re.search(r"\[.*\]", response.content, re.DOTALL).group()
-            )
+            parsed = json.loads(response.content)
+            # Support both wrapped {results: [...]} and raw [...] formats
+            if isinstance(parsed, list):
+                results = parsed
+            else:
+                results = parsed.get("results", [])
 
             # Downgrade unconfirmed items
             updated = list(evidence)
