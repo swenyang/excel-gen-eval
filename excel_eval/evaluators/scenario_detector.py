@@ -72,13 +72,27 @@ class ScenarioDetector:
             if not blend:
                 blend = {detected.value: 1.0}
 
+            # Parse dimension applicability
+            raw_applicable = parsed.get("applicable_dimensions", {})
+            applicable_dimensions: dict[str, bool] = {}
+            if raw_applicable and isinstance(raw_applicable, dict):
+                for k, v in raw_applicable.items():
+                    if isinstance(v, bool):
+                        applicable_dimensions[k] = v
+            dim_reasoning = parsed.get("dimension_reasoning", {})
+            if not isinstance(dim_reasoning, dict):
+                dim_reasoning = {}
+
             elapsed_ms = int((time.perf_counter() - start) * 1000)
             blend_str = ", ".join(f"{k}={v:.0%}" for k, v in blend.items())
+            na_dims = [k for k, v in applicable_dimensions.items() if not v]
+            na_str = f", n/a=[{', '.join(na_dims)}]" if na_dims else ""
             logger.info(
-                "Scenario detected: %s (confidence=%.2f, blend=[%s]) in %dms",
+                "Scenario detected: %s (confidence=%.2f, blend=[%s]%s) in %dms",
                 detected.value,
                 confidence,
                 blend_str,
+                na_str,
                 elapsed_ms,
             )
             return ScenarioResult(
@@ -86,6 +100,8 @@ class ScenarioDetector:
                 confidence=confidence,
                 reasoning=reasoning,
                 blend=blend,
+                applicable_dimensions=applicable_dimensions,
+                dimension_reasoning=dim_reasoning,
             )
 
         except Exception as exc:

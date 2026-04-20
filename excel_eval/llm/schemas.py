@@ -22,7 +22,7 @@ DIMENSION_EVAL_SCHEMA: dict = {
     "additionalProperties": False,
 }
 
-# Scenario detection response: {scenario, confidence, reasoning, blend}
+# Scenario detection response: {scenario, confidence, reasoning, blend, applicable_dimensions}
 SCENARIO_DETECT_SCHEMA: dict = {
     "type": "object",
     "properties": {
@@ -52,8 +52,39 @@ SCENARIO_DETECT_SCHEMA: dict = {
             "additionalProperties": False,
             "description": "Scenario blend weights summing to 1.0",
         },
+        "applicable_dimensions": {
+            "type": "object",
+            "properties": {
+                "data_accuracy": {"type": "boolean"},
+                "completeness": {"type": "boolean"},
+                "formula_logic": {"type": "boolean"},
+                "relevance": {"type": "boolean"},
+                "sheet_organization": {"type": "boolean"},
+                "table_structure": {"type": "boolean"},
+                "chart_appropriateness": {"type": "boolean"},
+                "professional_formatting": {"type": "boolean"},
+            },
+            "additionalProperties": False,
+            "description": "Which dimensions are applicable for this task",
+        },
+        "dimension_reasoning": {
+            "type": "object",
+            "properties": {
+                "data_accuracy": {"type": "string"},
+                "completeness": {"type": "string"},
+                "formula_logic": {"type": "string"},
+                "relevance": {"type": "string"},
+                "sheet_organization": {"type": "string"},
+                "table_structure": {"type": "string"},
+                "chart_appropriateness": {"type": "string"},
+                "professional_formatting": {"type": "string"},
+            },
+            "additionalProperties": False,
+            "description": "Brief reasoning for dimensions set to false",
+        },
     },
-    "required": ["scenario", "confidence", "reasoning", "blend"],
+    "required": ["scenario", "confidence", "reasoning", "blend",
+                  "applicable_dimensions"],
     "additionalProperties": False,
 }
 

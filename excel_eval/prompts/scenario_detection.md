@@ -119,6 +119,19 @@ Respond with **only** a JSON object (no markdown fences, no extra text):
   "blend": {
     "<primary scenario>": <float 0.0-1.0>,
     "<secondary scenario>": <float 0.0-1.0>
+  },
+  "applicable_dimensions": {
+    "data_accuracy": <true/false>,
+    "completeness": <true/false>,
+    "formula_logic": <true/false>,
+    "relevance": <true/false>,
+    "sheet_organization": <true/false>,
+    "table_structure": <true/false>,
+    "chart_appropriateness": <true/false>,
+    "professional_formatting": <true/false>
+  },
+  "dimension_reasoning": {
+    "<dimension>": "<brief reason if false>"
   }
 }
 ```
@@ -128,3 +141,11 @@ The `blend` field captures how much the workbook belongs to each scenario. Rules
 - If the workbook clearly fits one category (confidence >= 0.9), set that to 1.0.
 - If it spans two categories, split proportionally (e.g., 0.6 + 0.4). Values must sum to 1.0.
 - Maximum 2 scenarios in the blend. Minor traces of a third category should be absorbed into the closest match.
+
+The `applicable_dimensions` field determines which evaluation dimensions are relevant for this task. Set a dimension to `false` ONLY when it is clearly irrelevant:
+- `chart_appropriateness` → `false` if the prompt is about fixing/debugging/completing/auditing an existing workbook and does NOT request creating charts or visualizations. Also `false` for pure data entry or template completion tasks without chart requests.
+- `professional_formatting` → `false` only if the task is purely about data values with no formatting expectations (rare — almost always `true`).
+- `formula_logic` → `false` if the workbook contains no formulas and the task doesn't require them (e.g., a static data table or contact list).
+- All other dimensions should almost always be `true`.
+- When in doubt, set `true` — it is better to evaluate a dimension and have the evaluator return N/A than to skip it prematurely.
+- Only include dimensions set to `false` in `dimension_reasoning`.

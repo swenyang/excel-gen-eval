@@ -130,6 +130,11 @@ class ScenarioResult(BaseModel):
     reasoning: str = ""
     # Multi-scenario blend: {scenario: weight} where weights sum to ~1.0
     blend: dict[str, float] = Field(default_factory=dict)
+    # Dimension applicability: which dimensions are relevant for this task.
+    # Dimensions not in this dict (or mapped to False) will be scored N/A.
+    # Empty dict = all dimensions applicable (backward compatibility).
+    applicable_dimensions: dict[str, bool] = Field(default_factory=dict)
+    dimension_reasoning: dict[str, str] = Field(default_factory=dict)
 
 
 class EvalSummary(BaseModel):

@@ -92,7 +92,7 @@ class Pipeline:
         if num_runs <= 1:
             # Single run
             dim_results = await self._stage2_evaluate(
-                prepared, scenario.detected, case_config
+                prepared, scenario, case_config
             )
         else:
             # Multi-run: evaluate N times, take median per dimension
@@ -101,7 +101,7 @@ class Pipeline:
             for run_i in range(num_runs):
                 logger.info("  Pass %d/%d", run_i + 1, num_runs)
                 run_results = await self._stage2_evaluate(
-                    prepared, scenario.detected, case_config
+                    prepared, scenario, case_config
                 )
                 all_runs.append(run_results)
             dim_results = self._merge_runs_median(all_runs)
@@ -338,7 +338,7 @@ class Pipeline:
     async def _stage2_evaluate(
         self,
         data: PreparedData,
-        scenario: Scenario,
+        scenario_result: ScenarioResult,
         case_config: CaseConfig,
     ) -> dict[str, DimensionResult]:
         """Run all dimension evaluations in parallel."""
@@ -346,6 +346,9 @@ class Pipeline:
 
         skip_set = set(case_config.skip_dimensions)
         semaphore = asyncio.Semaphore(self.config.evaluation.max_concurrent_calls)
+        applicable = scenario_result.applicable_dimensions
+        dim_reasoning = scenario_result.dimension_reasoning
+        scenario = scenario_result.detected
 
         async def _run_one(evaluator: BaseEvaluator) -> DimensionResult:
             dim_name = evaluator.dimension.value
@@ -354,6 +357,16 @@ class Pipeline:
                     dimension=evaluator.dimension,
                     status=EvalStatus.SKIPPED,
                     feedback="Skipped by configuration",
+                )
+            # Skip dimensions deemed not applicable by scenario detection
+            if applicable and applicable.get(dim_name) is False:
+                reason = dim_reasoning.get(dim_name, "Not applicable for this task type")
+                logger.info("  Skipping %s (N/A): %s", dim_name, reason)
+                return DimensionResult(
+                    dimension=evaluator.dimension,
+                    score=None,
+                    status=EvalStatus.NA,
+                    feedback=f"N/A — {reason}",
                 )
             # Error on screenshot-dependent dimensions when no screenshots available
             screenshot_required_dims = {"professional_formatting", "chart_appropriateness"}
