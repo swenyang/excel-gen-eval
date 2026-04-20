@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 from excel_eval.evaluators.base import BaseEvaluator
+from excel_eval.evaluators.context_helpers import (
+    build_diff_context, should_use_diff_mode,
+)
 from excel_eval.models import DimensionName, PreparedData, Scenario
 
 
@@ -17,6 +20,10 @@ class RelevanceEvaluator(BaseEvaluator):
         return "relevance.md"
 
     def build_context(self, data: PreparedData, scenario: Scenario) -> str:
+        # Use diff-only mode for large files with high match rate
+        if should_use_diff_mode(data):
+            return build_diff_context(data, include_generated_sample=True)
+
         parts: list[str] = []
 
         # Generated Excel content

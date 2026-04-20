@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 from excel_eval.evaluators.base import BaseEvaluator
+from excel_eval.evaluators.context_helpers import (
+    build_diff_context, estimate_tokens, should_use_diff_mode, smart_text,
+)
 from excel_eval.evaluators.data_accuracy import _estimate_tokens, _smart_text
 from excel_eval.models import DimensionName, PreparedData, Scenario
 
@@ -23,6 +26,18 @@ class CompletenessEvaluator(BaseEvaluator):
         return True
 
     def build_context(self, data: PreparedData, scenario: Scenario) -> str:
+        # Use diff-only mode for large files with high match rate
+        if should_use_diff_mode(data):
+            ctx = build_diff_context(data, include_generated_sample=True)
+            # Add chart summary for completeness check
+            if data.charts:
+                chart_summary = "\n".join(
+                    f"- {c.chart_type} chart on sheet '{c.sheet}': {c.title or '(untitled)'}"
+                    for c in data.charts
+                )
+                ctx += f"\n\n## Charts Present\n{chart_summary}"
+            return ctx
+
         parts: list[str] = []
 
         # Code-level scan report

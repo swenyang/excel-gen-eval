@@ -3,35 +3,18 @@
 from __future__ import annotations
 
 from excel_eval.evaluators.base import BaseEvaluator
+from excel_eval.evaluators.context_helpers import (
+    build_diff_context, estimate_tokens, should_use_diff_mode, smart_text,
+)
 from excel_eval.models import DimensionName, PreparedData, Scenario
 
 # Token budget for data context (excluding scan report and prompt)
 # Leave room for scan report (~3K), prompt (~2K), and LLM response (~4K)
 MAX_DATA_TOKENS = 80_000
-CHARS_PER_TOKEN = 4  # rough estimate for mixed text/CSV
 
-
-def _estimate_tokens(text: str) -> int:
-    return len(text) // CHARS_PER_TOKEN
-
-
-def _smart_text(text: str, budget_tokens: int, label: str) -> tuple[str, str]:
-    """Return (formatted_text, mode) where mode is 'full' or 'sampled'."""
-    est = _estimate_tokens(text)
-    if est <= budget_tokens:
-        return f"## {label} — 全量 ({est} est. tokens)\n{text}", "full"
-
-    # Sample: keep head + tail
-    lines = text.split("\n")
-    head_n = min(60, len(lines) // 3)
-    tail_n = min(30, len(lines) // 4)
-    omitted = len(lines) - head_n - tail_n
-    sample = "\n".join(
-        lines[:head_n]
-        + ["", f"[... {omitted} lines omitted for context budget ...]", ""]
-        + lines[-tail_n:]
-    )
-    return f"## {label} — 采样 (原始 {est} tokens, 已截取首尾)\n{sample}", "sampled"
+# Keep these as aliases for backward compatibility (completeness.py imports them)
+_estimate_tokens = estimate_tokens
+_smart_text = smart_text
 
 
 class DataAccuracyEvaluator(BaseEvaluator):
@@ -45,6 +28,10 @@ class DataAccuracyEvaluator(BaseEvaluator):
         return "data_accuracy.md"
 
     def build_context(self, data: PreparedData, scenario: Scenario) -> str:
+        # Use diff-only mode for large files with high match rate
+        if should_use_diff_mode(data):
+            return build_diff_context(data, include_generated_sample=True)
+
         parts: list[str] = []
 
         # Code-level scan report (FACTUAL — top priority, always included)
