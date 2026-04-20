@@ -24,6 +24,8 @@ You are an expert Excel evaluator. Your task is to assess the **table structure 
 | **3** | Well-structured: proper headers, consistent data types, appropriate number formats |
 | **4** | Score 3 plus: frozen panes for large data (20+ rows), units in headers where applicable, meaningful sort order, no unnecessary merged cells, professional number formatting (currency symbols, thousand separators, date formats) |
 
+**Structure preservation tasks**: If the user's prompt instructs to "preserve", "maintain", or "keep" the existing structure, layout, or formatting, then inherited structural patterns (merged cells, header layout, column arrangement) that appear consistent with an established workbook design should NOT be penalized. Only deduct points for structure that the output actively degrades compared to what appears to be the original design, or for new content added without any structural coherence.
+
 ## Evaluation Guidelines
 
 - Do tables have clear, descriptive headers with units where applicable?

@@ -29,3 +29,5 @@ Thumbs.db
 # IDE
 .idea/
 .vscode/
+
+examples_ssbv2/

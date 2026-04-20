@@ -26,11 +26,13 @@ Score N/A (`null`) ONLY if:
 
 **Do NOT score N/A if**:
 - The user explicitly requested charts/visualizations but none exist → Score **0** (charts required but missing)
-- The scenario strongly expects charts (e.g., dashboard with KPIs, trend analysis over time) and none exist → Score **1-2**
+- The scenario strongly expects charts (e.g., dashboard with KPIs, trend analysis over time), AND the user's prompt discusses presenting visual insights or creating a new report from scratch, AND no charts exist → Score **1-2**. However, if the prompt is about modifying, fixing, or completing an existing workbook without mentioning charts, do NOT assume charts are expected — score based on what the prompt actually asks for.
 
 **Important distinction**: Score 0 is reserved for cases where charts were **explicitly requested** by the user but completely missing, or where existing charts are broken/misleading. If charts are merely "expected by convention" (e.g., a reporting scenario where charts would be nice to have), the absence should be scored **1-2**, not 0. Many professional Excel reports use tables with text conclusions instead of charts — this is a valid approach.
 
 **Multi-deliverable tasks**: If the user's prompt requests both an Excel workbook AND another deliverable (e.g., PowerPoint, PDF report), and chart/graph/visualization requests are directed at the OTHER deliverable (e.g., "create a PowerPoint with graphics"), do NOT penalize the Excel workbook for missing charts. Score N/A for the Excel file. Only score charts in the Excel if the prompt explicitly or clearly requests charts IN the spreadsheet.
+
+**Modification/completion tasks**: If the user's prompt primarily asks to "fix", "debug", "audit", "repair", "complete a model", or "fill in" an existing workbook — and does NOT mention creating new charts or visualizations — score N/A. These tasks focus on data/formula correctness, not visualization. The absence of new charts in a debugging, template-completion, or formula-fixing task is entirely expected and should not be penalized. Only score charts if the prompt explicitly requests chart creation or the task is specifically about creating visualizations.
 
 ## Evaluation Guidelines
 

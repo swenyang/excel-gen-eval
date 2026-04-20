@@ -74,6 +74,10 @@ class DataComparisonReport:
     match_method: str = "positional"  # "positional" or "key_based"
     key_column: str | None = None  # the key column used for key-based matching
     empty_rows_dropped: int = 0  # total empty rows removed from both sides
+    # Expected fills: cells where source was empty and generated has a value.
+    # These represent template completion, not data errors.
+    expected_fill_cells: int = 0
+    expected_fill_examples: list[RowDiff] = field(default_factory=list)  # capped at 10
 
 
 @dataclass
@@ -248,6 +252,14 @@ def format_scan_report(report: ScanReport) -> str:
 
         lines.append(f"- Comparable rows: {dc.total_comparable_rows}, Matched: {dc.matched_rows} ({dc.match_percentage:.1f}%)")
 
+        # Expected fills info (source empty → generated has value)
+        if dc.expected_fill_cells > 0:
+            lines.append(
+                f"- ℹ **Expected fills**: {dc.expected_fill_cells} cells where source was empty "
+                f"and output contains computed values. These represent template completion "
+                f"(filling in blank cells as instructed) and are excluded from the mismatch count."
+            )
+
         # Low match rate warning
         if dc.match_percentage < 50 and dc.total_comparable_rows > 0:
             if dc.match_method == "positional":
@@ -270,9 +282,14 @@ def format_scan_report(report: ScanReport) -> str:
                 lines.append(f"  - `{cm.source_col}` → `{cm.generated_col}` ({cm.match_type}, conf={conf}) {match_info}")
 
         if dc.row_diffs:
-            lines.append(f"- Differences found ({len(dc.row_diffs)} shown, may be more):")
+            lines.append(f"- Actual differences found ({len(dc.row_diffs)} shown, may be more):")
             for rd in dc.row_diffs[:30]:
                 lines.append(f"  - Row {rd.row_index}, `{rd.column}`: source=`{rd.source_value}` vs generated=`{rd.generated_value}`")
+
+        if dc.expected_fill_examples:
+            lines.append(f"- Expected fill examples ({len(dc.expected_fill_examples)} shown):")
+            for rd in dc.expected_fill_examples[:10]:
+                lines.append(f"  - Row {rd.row_index}, `{rd.column}`: empty → `{rd.generated_value}`")
 
         if dc.summary:
             lines.append(f"- Summary: {dc.summary}")
@@ -483,6 +500,8 @@ def _compare_by_key(
     compare_rows = 0
     matched = 0
     diffs: list[RowDiff] = []
+    expected_fill_cells = 0
+    expected_fill_examples: list[RowDiff] = []
 
     for src_idx in range(len(source_df)):
         key_val = str(source_df.iloc[src_idx][src_key])
@@ -492,35 +511,60 @@ def _compare_by_key(
 
         compare_rows += 1
         row_match = True
+        row_only_fills = True  # True if all diffs in this row are expected fills
         for src_col, gen_col in zip(mapped_src_cols, mapped_gen_cols):
             src_val = source_df.iloc[src_idx].get(src_col)
             gen_val = gen_df.iloc[gen_idx].get(gen_col)
 
             if not _values_match(src_val, gen_val):
-                row_match = False
-                if len(diffs) < 50:
-                    diffs.append(RowDiff(
-                        row_index=src_idx + 2,  # 1-indexed + header
-                        column=src_col,
-                        source_value=str(src_val)[:100],
-                        generated_value=str(gen_val)[:100],
-                    ))
+                if _is_cell_empty(src_val) and not _is_cell_empty(gen_val):
+                    # Source was empty, generated filled it — expected for template tasks
+                    expected_fill_cells += 1
+                    if len(expected_fill_examples) < 10:
+                        expected_fill_examples.append(RowDiff(
+                            row_index=src_idx + 2,
+                            column=src_col,
+                            source_value=str(src_val)[:100],
+                            generated_value=str(gen_val)[:100],
+                        ))
+                else:
+                    row_match = False
+                    row_only_fills = False
+                    if len(diffs) < 50:
+                        diffs.append(RowDiff(
+                            row_index=src_idx + 2,  # 1-indexed + header
+                            column=src_col,
+                            source_value=str(src_val)[:100],
+                            generated_value=str(gen_val)[:100],
+                        ))
 
-        if row_match:
+        # A row counts as matched if all its differences are expected fills
+        if row_match or row_only_fills:
             matched += 1
 
     report.total_comparable_rows = compare_rows
     report.matched_rows = matched
     report.match_percentage = (matched / compare_rows * 100) if compare_rows > 0 else 0
     report.row_diffs = diffs
+    report.expected_fill_cells = expected_fill_cells
+    report.expected_fill_examples = expected_fill_examples
 
     diff_count = compare_rows - matched
     unmatched_keys = len(source_df) - compare_rows
-    report.summary = (
+    summary_parts = [
         f"Key-based matching on `{src_key}`: {matched}/{compare_rows} rows match "
-        f"({report.match_percentage:.1f}%). "
-        f"{diff_count} rows have differences across {len(mapped_src_cols)} compared columns."
-    )
+        f"({report.match_percentage:.1f}%)."
+    ]
+    if diff_count > 0:
+        summary_parts.append(
+            f" {diff_count} rows have value differences across {len(mapped_src_cols)} compared columns."
+        )
+    if expected_fill_cells > 0:
+        summary_parts.append(
+            f" {expected_fill_cells} cells were empty in source and filled in output "
+            f"(expected template completion, excluded from mismatch count)."
+        )
+    report.summary = "".join(summary_parts)
     if unmatched_keys > 0:
         report.summary += f" {unmatched_keys} source rows had no matching key in generated data."
 
@@ -544,29 +588,45 @@ def _compare_positional(
 
     matched = 0
     diffs: list[RowDiff] = []
+    expected_fill_cells = 0
+    expected_fill_examples: list[RowDiff] = []
 
     for i in range(compare_rows):
         row_match = True
+        row_only_fills = True
         for src_col, gen_col in zip(mapped_src_cols, mapped_gen_cols):
             src_val = source_df.iloc[i].get(src_col)
             gen_val = gen_df.iloc[i].get(gen_col)
 
             if not _values_match(src_val, gen_val):
-                row_match = False
-                if len(diffs) < 50:
-                    diffs.append(RowDiff(
-                        row_index=i + 2,  # 1-indexed + header
-                        column=src_col,
-                        source_value=str(src_val)[:100],
-                        generated_value=str(gen_val)[:100],
-                    ))
+                if _is_cell_empty(src_val) and not _is_cell_empty(gen_val):
+                    expected_fill_cells += 1
+                    if len(expected_fill_examples) < 10:
+                        expected_fill_examples.append(RowDiff(
+                            row_index=i + 2,
+                            column=src_col,
+                            source_value=str(src_val)[:100],
+                            generated_value=str(gen_val)[:100],
+                        ))
+                else:
+                    row_match = False
+                    row_only_fills = False
+                    if len(diffs) < 50:
+                        diffs.append(RowDiff(
+                            row_index=i + 2,  # 1-indexed + header
+                            column=src_col,
+                            source_value=str(src_val)[:100],
+                            generated_value=str(gen_val)[:100],
+                        ))
 
-        if row_match:
+        if row_match or row_only_fills:
             matched += 1
 
     report.matched_rows = matched
     report.match_percentage = (matched / compare_rows * 100) if compare_rows > 0 else 0
     report.row_diffs = diffs
+    report.expected_fill_cells = expected_fill_cells
+    report.expected_fill_examples = expected_fill_examples
 
     diff_count = compare_rows - matched
     report.summary = (
@@ -678,6 +738,20 @@ def _match_columns(source_df: pd.DataFrame, gen_df: pd.DataFrame) -> list[Column
             used_gen_cols.add(best_match.generated_col)
 
     return mappings
+
+
+def _is_cell_empty(val) -> bool:
+    """Check if a cell value is empty/null (NaN, None, empty string)."""
+    if val is None:
+        return True
+    try:
+        if pd.isna(val):
+            return True
+    except (TypeError, ValueError):
+        pass
+    if isinstance(val, str) and val.strip() == "":
+        return True
+    return False
 
 
 def _values_match(a, b) -> bool:

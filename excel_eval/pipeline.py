@@ -355,15 +355,17 @@ class Pipeline:
                     status=EvalStatus.SKIPPED,
                     feedback="Skipped by configuration",
                 )
-            # Skip screenshot-dependent dimensions when no screenshots available
+            # Error on screenshot-dependent dimensions when no screenshots available
             screenshot_required_dims = {"professional_formatting", "chart_appropriateness"}
             if dim_name in screenshot_required_dims and not data.screenshots:
                 return DimensionResult(
                     dimension=evaluator.dimension,
                     score=None,
-                    status=EvalStatus.SUCCESS,
-                    feedback="N/A — no screenshots available (LibreOffice conversion failed). "
+                    status=EvalStatus.ERROR,
+                    feedback="N/A — no screenshots available (LibreOffice/poppler conversion failed). "
                              "This dimension requires visual inspection and cannot be evaluated from CSV data alone.",
+                    error_message="Screenshot generation failed — install LibreOffice and poppler (pdf2image) "
+                                  "to enable visual evaluation dimensions.",
                 )
             async with semaphore:
                 logger.info("  Evaluating: %s", dim_name)
