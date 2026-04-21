@@ -204,7 +204,7 @@ class LLMConfig(BaseModel):
     temperature: float = 0.0
     max_retries: int = 3
     timeout: int = 120
-    max_tokens: int = 16384
+    max_tokens: int = 32768
 
 
 class EvalConfig(BaseModel):
