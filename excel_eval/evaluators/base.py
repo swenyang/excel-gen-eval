@@ -38,23 +38,18 @@ def format_sheet_header(sheet, extra: str = "") -> str:
 
 
 def _is_feedback_incomplete(feedback: str) -> bool:
-    """Check if feedback text appears to be cut off mid-sentence."""
+    """Check if feedback text appears to be cut off mid-sentence.
+
+    Uses a whitelist of valid sentence-ending characters. If the feedback
+    doesn't end with one of these, it's likely incomplete.
+    """
     text = feedback.rstrip()
     if not text:
         return True
     last_char = text[-1]
-    # Ends with an opening bracket/parenthesis — clearly incomplete
-    if last_char in ("（", "(", "「", "【", "《", "{", "["):
-        return True
-    # Ends with a conjunction/particle that expects continuation
-    incomplete_endings = ("的", "了", "和", "与", "或", "及", "是", "为",
-                          "在", "将", "把", "被", "等", "如", "含",
-                          "the", "a", "an", "of", "in", "to", "and", "or",
-                          "for", "with", "by", "is", "are", "was", "that")
-    for ending in incomplete_endings:
-        if text.endswith(ending):
-            return True
-    return False
+    # Valid sentence endings (Chinese + English + closing brackets)
+    complete_endings = set("。！？.!?）)」】》}]\"'")
+    return last_char not in complete_endings
 
 
 def _downscale_image(img_bytes: bytes, max_width: int = 1200) -> bytes:
