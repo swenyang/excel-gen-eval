@@ -120,17 +120,8 @@ class BaseEvaluator(abc.ABC):
         try:
             system_prompt = self._load_prompt()
 
-            # Inject language instruction
-            if self.language and self.language != "en":
-                lang_names = {"zh": "Chinese (中文)", "ja": "Japanese", "ko": "Korean",
-                              "fr": "French", "de": "German", "es": "Spanish"}
-                lang_name = lang_names.get(self.language, self.language)
-                system_prompt += (
-                    f"\n\n## Language\n"
-                    f"Write ALL feedback and evidence text in **{lang_name}**. "
-                    f"Keep technical tags (+VERIFIED, -INFERRED, UNCONFIRMED) and "
-                    f"JSON field names in English."
-                )
+            # Always evaluate in English to avoid JSON truncation with CJK languages.
+            # Non-English feedback is generated via post-evaluation translation.
 
             context = self.build_context(data, scenario)
 
