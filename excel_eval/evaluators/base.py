@@ -37,6 +37,26 @@ def format_sheet_header(sheet, extra: str = "") -> str:
     return base
 
 
+def _is_feedback_incomplete(feedback: str) -> bool:
+    """Check if feedback text appears to be cut off mid-sentence."""
+    text = feedback.rstrip()
+    if not text:
+        return True
+    last_char = text[-1]
+    # Ends with an opening bracket/parenthesis — clearly incomplete
+    if last_char in ("（", "(", "「", "【", "《", "{", "["):
+        return True
+    # Ends with a conjunction/particle that expects continuation
+    incomplete_endings = ("的", "了", "和", "与", "或", "及", "是", "为",
+                          "在", "将", "把", "被", "等", "如", "含",
+                          "the", "a", "an", "of", "in", "to", "and", "or",
+                          "for", "with", "by", "is", "are", "was", "that")
+    for ending in incomplete_endings:
+        if text.endswith(ending):
+            return True
+    return False
+
+
 def _downscale_image(img_bytes: bytes, max_width: int = 1200) -> bytes:
     """Downscale a PNG image to fit within max_width, preserving aspect ratio.
 
@@ -183,19 +203,20 @@ class BaseEvaluator(abc.ABC):
             score = parsed.get("score")
             feedback = parsed.get("feedback", "")
 
-            # Guard 2: suspiciously short feedback — retry once
-            # JSON mode lets the model "exit early" with minimal valid JSON,
-            # especially for simple inputs. Retry with an explicit nudge.
-            if (
-                len(feedback) < 100
-                and score is not None
-                and response.stop_reason != "max_tokens"
-            ):
+            # Guard 2: incomplete or short feedback — retry with nudge
+            # Detects: (a) feedback < 100 chars, (b) feedback ends mid-sentence
+            needs_retry = False
+            if score is not None and response.stop_reason != "max_tokens":
+                if len(feedback) < 100:
+                    needs_retry = True
+                elif _is_feedback_incomplete(feedback):
+                    needs_retry = True
+
+            if needs_retry:
                 logger.warning(
-                    "Dimension %s: short feedback (%d chars, %d output tokens), retrying with nudge",
+                    "Dimension %s: incomplete feedback (%d chars, %d output tokens), retrying with nudge",
                     self.dimension, len(feedback), response.output_tokens,
                 )
-                # Add a nudge to the last message asking for detailed analysis
                 retry_messages = list(messages)
                 retry_messages.append({
                     "role": "assistant",
@@ -204,8 +225,9 @@ class BaseEvaluator(abc.ABC):
                 retry_messages.append({
                     "role": "user",
                     "content": (
-                        "Your feedback was too brief. Please provide a MORE DETAILED analysis "
-                        "with at least 3 specific findings in the evidence array. "
+                        "Your feedback appears incomplete (cut off mid-sentence). "
+                        "Please provide the COMPLETE analysis with proper sentence endings "
+                        "and at least 3 specific findings in the evidence array. "
                         "Respond with the complete JSON again."
                     ),
                 })
@@ -215,7 +237,6 @@ class BaseEvaluator(abc.ABC):
                 )
                 retry_parsed = self._parse_response(response.content)
                 retry_feedback = retry_parsed.get("feedback", "")
-                # Only use retry result if it's actually longer
                 if len(retry_feedback) > len(feedback):
                     parsed = retry_parsed
                     score = parsed.get("score")
