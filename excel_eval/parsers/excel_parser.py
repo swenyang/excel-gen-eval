@@ -150,7 +150,14 @@ def _extract_sheets(excel_path: Path, lightweight: bool = False) -> list[SheetDa
             df = df_raw
 
         # Drop trailing all-empty rows (openpyxl may include 1M+ rows due to formatting)
-        df = df.loc[~(df.isna() | (df.astype(str).str.strip() == "")).all(axis=1)]
+        empty_mask = df.apply(
+            lambda row: all(
+                pd.isna(v) or (isinstance(v, str) and v.strip() == "")
+                for v in row
+            ),
+            axis=1,
+        )
+        df = df.loc[~empty_mask]
 
         # Drop trailing all-empty columns (openpyxl may include 16384 cols due to formatting)
         if len(df.columns) > 0:
