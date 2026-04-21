@@ -20,17 +20,24 @@ def estimate_tokens(text: str) -> int:
     return len(text) // CHARS_PER_TOKEN
 
 
+DIFF_MODE_MAX_EXPECTED_FILLS = 100  # don't use diff mode if too many cells were filled
+
+
 def should_use_diff_mode(data: PreparedData) -> bool:
     """Check if diff-only mode should be used instead of full CSV.
 
     Diff mode is used when input and output files are structurally similar
-    (e.g., audit/debug/template tasks where the output is a modified input).
+    AND the changes are small (e.g., audit/debug tasks that fix errors).
+
+    NOT used for completion tasks (financial modeling, template filling)
+    where many empty cells get populated — the LLM needs to see the filled
+    values to evaluate accuracy and completeness.
 
     Conditions (all must be true):
     - Scanner comparison exists (input and output share sheet structure)
     - Grounding data (input) and generated data are similar in size
-      (ratio within 3x — indicates modify-in-place, not from-scratch)
     - Full data exceeds token threshold
+    - Few expected fills (< 100 cells transitioned from empty → value)
     """
     if not data.scan_report_text:
         return False
@@ -49,7 +56,19 @@ def should_use_diff_mode(data: PreparedData) -> bool:
     if grounding_tokens == 0 or generated_tokens == 0:
         return False
     ratio = max(grounding_tokens, generated_tokens) / min(grounding_tokens, generated_tokens)
-    return ratio < 3.0
+    if ratio >= 3.0:
+        return False
+
+    # Don't use diff mode if many cells were filled (completion task, not audit).
+    # The LLM needs to see the filled values to evaluate accuracy.
+    import re
+    fills_match = re.search(
+        r"Expected fills.*?(\d+)\s*cells", data.scan_report_text
+    )
+    if fills_match and int(fills_match.group(1)) > DIFF_MODE_MAX_EXPECTED_FILLS:
+        return False
+
+    return True
 
 
 def build_diff_context(data: PreparedData, include_generated_sample: bool = False) -> str:
