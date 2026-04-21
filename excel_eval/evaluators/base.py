@@ -156,8 +156,50 @@ class BaseEvaluator(abc.ABC):
                 json_schema=DIMENSION_EVAL_SCHEMA,
             )
 
+            # Guard 1: output truncated by max_tokens — JSON is likely broken
+            if response.stop_reason == "max_tokens":
+                # Check if the response is still valid JSON despite truncation
+                try:
+                    json.loads(response.content)
+                except (json.JSONDecodeError, ValueError):
+                    logger.warning(
+                        "Dimension %s: output hit max_tokens (%d) and JSON is invalid, marking ERROR",
+                        self.dimension, response.output_tokens,
+                    )
+                    elapsed_ms = int((time.perf_counter() - start) * 1000)
+                    return DimensionResult(
+                        dimension=self.dimension,
+                        status=EvalStatus.ERROR,
+                        error_message=(
+                            f"LLM output truncated at max_tokens ({response.output_tokens}). "
+                            f"Increase max_tokens in config or simplify the evaluation context."
+                        ),
+                        input_tokens=response.input_tokens,
+                        output_tokens=response.output_tokens,
+                        latency_ms=elapsed_ms,
+                    )
+
             parsed = self._parse_response(response.content)
             score = parsed.get("score")
+            feedback = parsed.get("feedback", "")
+
+            # Guard 2: suspiciously short output — retry once
+            if (
+                response.output_tokens < 100
+                and len(feedback) < 50
+                and response.stop_reason != "max_tokens"
+            ):
+                logger.warning(
+                    "Dimension %s: suspiciously short output (%d tokens, feedback=%d chars), retrying",
+                    self.dimension, response.output_tokens, len(feedback),
+                )
+                response = await self.llm_client.complete_with_retry(
+                    messages, images=images, json_mode=True,
+                    json_schema=DIMENSION_EVAL_SCHEMA,
+                )
+                parsed = self._parse_response(response.content)
+                score = parsed.get("score")
+                feedback = parsed.get("feedback", "")
 
             # Cap score when screenshots were needed but missing
             if (
@@ -182,7 +224,7 @@ class BaseEvaluator(abc.ABC):
                 dimension=self.dimension,
                 status=EvalStatus.SUCCESS,
                 score=score,
-                feedback=parsed.get("feedback", ""),
+                feedback=feedback,
                 evidence=evidence,
                 input_tokens=total_input,
                 output_tokens=total_output,

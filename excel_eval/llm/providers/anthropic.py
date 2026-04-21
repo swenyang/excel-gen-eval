@@ -86,6 +86,7 @@ class AnthropicLLMClient(BaseLLMClient):
             output_tokens=output_tokens,
             latency_ms=latency_ms,
             cost_estimate=cost,
+            stop_reason=getattr(response, "stop_reason", "") or "",
         )
 
     # ── Message conversion ─────────────────────────────────────────────

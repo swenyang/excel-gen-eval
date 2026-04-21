@@ -26,6 +26,7 @@ class LLMResponse(BaseModel):
     output_tokens: int = 0
     latency_ms: int = 0
     cost_estimate: float = 0.0
+    stop_reason: str = ""  # "end_turn", "max_tokens", etc.
 
 
 # ── Abstract client ────────────────────────────────────────────────────────
