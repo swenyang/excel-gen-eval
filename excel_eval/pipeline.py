@@ -106,12 +106,6 @@ class Pipeline:
                 all_runs.append(run_results)
             dim_results = self._merge_runs_median(all_runs)
 
-        # Translate feedback to target language if not English
-        if self.config.evaluation.language and self.config.evaluation.language != "en":
-            dim_results = await self._translate_feedback(
-                dim_results, self.config.evaluation.language
-            )
-
         # Stage 3: Aggregation
         result = self._stage3_aggregate(
             case_config, prepared, scenario, dim_results
@@ -396,68 +390,6 @@ class Pipeline:
         results = await asyncio.gather(*tasks)
 
         return {r.dimension.value: r for r in results}
-
-    async def _translate_feedback(
-        self,
-        dim_results: dict[str, DimensionResult],
-        target_lang: str,
-    ) -> dict[str, DimensionResult]:
-        """Translate English feedback/evidence to target language via one LLM call."""
-        lang_names = {
-            "zh": "Chinese (中文)", "ja": "Japanese", "ko": "Korean",
-            "fr": "French", "de": "German", "es": "Spanish",
-        }
-        lang_name = lang_names.get(target_lang, target_lang)
-
-        # Collect feedback texts to translate
-        to_translate: dict[str, dict] = {}
-        for dim_name, dr in dim_results.items():
-            if dr.feedback and dr.status == EvalStatus.SUCCESS:
-                to_translate[dim_name] = {
-                    "feedback": dr.feedback,
-                    "evidence": dr.evidence[:10],  # cap to avoid huge payloads
-                }
-
-        if not to_translate:
-            return dim_results
-
-        # Build a single translation prompt
-        import json as _json
-        prompt = (
-            f"Translate the following evaluation feedback and evidence items "
-            f"from English to {lang_name}. Keep technical tags "
-            f"(+VERIFIED, -INFERRED, UNCONFIRMED) in English.\n\n"
-            f"Input:\n```json\n{_json.dumps(to_translate, ensure_ascii=False, indent=2)}\n```\n\n"
-            f"Output the same JSON structure with translated text. "
-            f"Return ONLY the JSON object, no other text."
-        )
-
-        try:
-            response = await self.llm_client.complete_with_retry(
-                [{"role": "user", "content": prompt}],
-                json_mode=True,
-            )
-            # Parse translated content
-            text = response.content.strip()
-            fence_match = __import__("re").search(
-                r"```(?:json)?\s*\n?(.*?)\n?\s*```", text, __import__("re").DOTALL
-            )
-            if fence_match:
-                text = fence_match.group(1).strip()
-            translated = _json.loads(text)
-
-            # Apply translations
-            for dim_name, trans in translated.items():
-                if dim_name in dim_results:
-                    dr = dim_results[dim_name]
-                    dr.feedback_zh = trans.get("feedback", "")
-                    dr.evidence_zh = trans.get("evidence", [])
-
-            logger.info("Translated feedback to %s for %d dimensions", lang_name, len(translated))
-        except Exception as exc:
-            logger.warning("Feedback translation failed: %s", exc)
-
-        return dim_results
 
     # ── Stage 3: Aggregation ───────────────────────────────────────────
 

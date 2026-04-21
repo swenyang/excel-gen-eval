@@ -970,13 +970,11 @@ _HTML_TEMPLATE = r"""<!DOCTYPE html>
           </summary>
           <div class="detail-body">
             {% if dr %}
-              {% set fb = dr.feedback_zh if dr.feedback_zh else dr.feedback %}
-              {% if fb %}{{ highlight_feedback(fb) }}{% endif %}
-              {% set ev_list = dr.evidence_zh if dr.evidence_zh else dr.evidence %}
-              {% if ev_list %}
+              {% if dr.feedback %}{{ highlight_feedback(dr.feedback) }}{% endif %}
+              {% if dr.evidence %}
               <p style="font-size:12px;font-weight:600;color:var(--color-fg-muted);margin:12px 0 4px;">Key Findings</p>
               <ul class="evidence-list">
-                {% for ev in ev_list %}<li>{{ highlight_evidence(ev) }}</li>{% endfor %}
+                {% for ev in dr.evidence %}<li>{{ highlight_evidence(ev) }}</li>{% endfor %}
               </ul>
               {% endif %}
               {% if dr.error_message %}<p style="color:var(--color-red)">Error: {{ dr.error_message }}</p>{% endif %}

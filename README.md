@@ -989,6 +989,16 @@ excel-gen-eval/
 
 ---
 
-## 11. License
+## 11. Known Limitations
+
+| 限制 | 说明 | 影响 |
+|------|------|------|
+| **中文 feedback 可能不完整** | 当 `language: zh` 时，LLM 在 JSON mode 下可能提前关闭 JSON，导致 feedback 文本被截断。评分（score）不受影响，仅 feedback 描述文字可能不完整。 | 建议使用默认英文输出（`language: en`），英文下无此问题。 |
+| **截图依赖 LibreOffice + poppler** | Chart Appropriateness 和 Professional Formatting 维度需要截图才能评估。若 LibreOffice 或 poppler（pdf2image）未安装，这两个维度会报 ERROR。 | 安装 LibreOffice 和 poppler 即可解决。 |
+| **超大工作表解析慢** | 包含 100K+ 行或 1M+ 空行（因格式扩展）的工作表，Stage 1 解析可能较慢。 | 已自动清理空行并截断至 500 行。 |
+
+---
+
+## 12. License
 
 MIT
