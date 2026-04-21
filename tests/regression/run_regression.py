@@ -35,8 +35,9 @@ def main():
         print("WARNING: Some test cases are missing data files:")
         for m in missing:
             print(f"  {m}")
-        print("\nTo download GDPVal test data, run:")
-        print("  python scripts/download_gdpval.py")
+        print("\nTo download test data, run:")
+        print("  python scripts/download_gdpval.py    # GDPVal cases")
+        print("  python scripts/download_ssbv2.py --output examples_ssbv2  # SSBv2 cases")
         print()
 
     config = load_global_config(str(config_path))

@@ -334,8 +334,8 @@ def main():
         description="Download SpreadsheetBench V2 example cases"
     )
     parser.add_argument(
-        "--output", default="examples",
-        help="Output directory for cases (default: examples)",
+        "--output", default="examples_ssbv2",
+        help="Output directory for cases (default: examples_ssbv2)",
     )
     args = parser.parse_args()
 

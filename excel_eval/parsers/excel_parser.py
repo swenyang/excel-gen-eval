@@ -149,6 +149,9 @@ def _extract_sheets(excel_path: Path, lightweight: bool = False) -> list[SheetDa
         else:
             df = df_raw
 
+        # Drop trailing all-empty rows (openpyxl may include 1M+ rows due to formatting)
+        df = df.loc[~(df.isna() | (df.astype(str).str.strip() == "")).all(axis=1)]
+
         # Drop trailing all-empty columns (openpyxl may include 16384 cols due to formatting)
         if len(df.columns) > 0:
             last_non_empty = 0
@@ -160,11 +163,13 @@ def _extract_sheets(excel_path: Path, lightweight: bool = False) -> list[SheetDa
                 df = df.iloc[:, :last_non_empty + 1]
                 col_count = len(df.columns)
 
+        # Use actual DataFrame row count for truncation (openpyxl df may differ from pd.read_excel)
+        actual_rows = len(df)
         truncated = False
-        if row_count > MAX_ROWS_FULL:
+        if actual_rows > MAX_ROWS_FULL:
             head = df.head(HEAD_ROWS)
             tail = df.tail(TAIL_ROWS)
-            truncated_count = row_count - HEAD_ROWS - TAIL_ROWS
+            truncated_count = actual_rows - HEAD_ROWS - TAIL_ROWS
             marker = pd.DataFrame(
                 {col: [f"[... {truncated_count} rows truncated ...]"] for col in df.columns},
                 index=[0],

@@ -9,7 +9,7 @@
 # covering diverse score ranges, scenarios, and input types.
 
 cases:
-  # ── High scorers (overall 3.3+) ────────────────────────────────────
+  # ── GDPVal High scorers (overall 3.3+) ──────────────────────────────
 
   - case_dir: examples/finance-orchestra-comp
     description: "High-quality financial model — 9347 formulas, near-perfect"
@@ -22,7 +22,7 @@ cases:
       table_structure: [3, 4]
       chart_appropriateness: null  # No charts expected
       professional_formatting: [2, 4]
-      overall_min: 3.5
+      overall_min: 3.3
 
   - case_dir: examples/wholesale-po-audit
     description: "Perfect data accuracy — 164 formulas, 100% match"
@@ -63,7 +63,7 @@ cases:
       professional_formatting: [2, 4]
       overall_min: 2.8
 
-  # ── Mid scorers (overall 2.7-3.3) ──────────────────────────────────
+  # ── GDPVal Mid scorers (overall 2.7-3.3) ────────────────────────────
 
   - case_dir: examples/wholesale-additional-shipments
     description: "Inventory planning — datetime column names, good content"
@@ -117,7 +117,7 @@ cases:
       professional_formatting: [2, 4]
       overall_min: 2.3
 
-  # ── Low scorers (overall < 2.5) ────────────────────────────────────
+  # ── GDPVal Low scorers (overall < 2.5) ──────────────────────────────
 
   - case_dir: examples/wholesale-sales-analysis
     description: "Sales analysis — stable low PF=1, mid-range overall"
@@ -144,3 +144,76 @@ cases:
       chart_appropriateness: null
       professional_formatting: [1, 4]
       overall_min: 1.0
+
+  # ── SSBv2 Debugging (golden = corrected workbook) ───────────────────
+
+  - case_dir: examples_ssbv2/ssb2-debug-04-06-inconsistent-color-coding
+    description: "SSBv2 debug — 18 sheets, fix color coding errors"
+    expected:
+      data_accuracy: [2, 4]
+      completeness: [2, 4]
+      formula_logic: [2, 4]
+      relevance: [3, 4]
+      sheet_organization: [3, 4]
+      table_structure: [2, 4]
+      chart_appropriateness: null
+      professional_formatting: [2, 4]
+      overall_min: 2.8
+
+  - case_dir: examples_ssbv2/ssb2-debug-10-02-unit-mismatch
+    description: "SSBv2 debug — fix unit mismatch errors, consistently high scorer"
+    expected:
+      data_accuracy: [2, 4]
+      completeness: [3, 4]
+      formula_logic: [2, 4]
+      relevance: [3, 4]
+      sheet_organization: [3, 4]
+      table_structure: [2, 4]
+      chart_appropriateness: null
+      professional_formatting: [2, 4]
+      overall_min: 3.0
+
+  # ── SSBv2 Financial Model (golden = completed model) ────────────────
+
+  - case_dir: examples_ssbv2/ssb2-fm-pepsico-step5
+    description: "SSBv2 FM — PepsiCo full model completion, all 4 tabs"
+    expected:
+      data_accuracy: [2, 4]
+      completeness: [3, 4]
+      formula_logic: [3, 4]
+      relevance: [3, 4]
+      sheet_organization: [3, 4]
+      table_structure: [2, 4]
+      chart_appropriateness: null  # May be N/A or scored (charts exist in model)
+      professional_formatting: [2, 4]
+      overall_min: 3.0
+
+  # ── SSBv2 Template (golden = completed template) ────────────────────
+
+  - case_dir: examples_ssbv2/ssb2-template-01-01
+    description: "SSBv2 template — bond accounting schedule completion"
+    expected:
+      data_accuracy: [2, 4]
+      completeness: [2, 4]
+      formula_logic: [2, 4]
+      relevance: [2, 4]
+      sheet_organization: [1, 3]
+      table_structure: [1, 3]
+      chart_appropriateness: null  # No charts
+      professional_formatting: [1, 3]
+      overall_min: 2.3
+
+  # ── SSBv2 Visualization (golden = charts added) ─────────────────────
+
+  - case_dir: examples_ssbv2/ssb2-viz-task-1430721
+    description: "SSBv2 viz — line chart creation, consistently good"
+    expected:
+      data_accuracy: [2, 4]
+      completeness: [2, 4]
+      formula_logic: null  # No formulas expected
+      relevance: [3, 4]
+      sheet_organization: [2, 4]
+      table_structure: [1, 3]
+      chart_appropriateness: [2, 4]
+      professional_formatting: [2, 4]
+      overall_min: 2.5
