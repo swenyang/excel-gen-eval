@@ -894,10 +894,11 @@ excel-gen-eval/
 
 | 问题 | 说明 |
 |------|------|
+| **中文 feedback 可能不完整** | 当 `language: zh` 时，LLM 在 JSON mode 下可能提前关闭 JSON，导致 feedback 文本被截断。**评分（score）不受影响**，仅 feedback 描述文字可能不完整。建议使用默认英文输出（`language: en`），英文下无此问题。 |
 | **大数据集采样导致信息丢失** | 当源数据 + 生成数据超过 80K token 预算时，系统保留首部 + 尾部行，中间数据被省略。LLM 无法看到被省略的行，只能依赖 data_scanner 的扫描报告（仅 Excel 输入时可用）。 |
 | **LLM 仍可能编造细节** | 尽管有独立验证步骤和扫描报告锚定，LLM 偶尔仍会编造不存在的具体数据值或错误地声称某行数据不正确。独立验证能捕获约 3.6% 的此类情况，但不能保证 100% 消除。 |
 | **评分存在固有波动性** | 同一用例多次评估可能得到不同分数（通常 ±1 分）。`--runs N` 取中位数可以缓解但不能完全消除。建议关键场景使用 `--runs 3` 或更多。 |
-| **JSON 解析偶尔失败** | LLM 返回的 JSON 有时格式不合规（尤其是包含中文时），系统会使用 json-repair 库尝试修复，但极端情况下仍可能失败，该维度标记为 error。 |
+| **截图依赖 LibreOffice + poppler** | Chart Appropriateness 和 Professional Formatting 维度需要截图才能评估。若 LibreOffice 或 poppler（pdf2image）未安装，这两个维度会报 ERROR。 |
 
 ### 9.4 输入格式支持
 
@@ -989,16 +990,6 @@ excel-gen-eval/
 
 ---
 
-## 11. Known Limitations
-
-| 限制 | 说明 | 影响 |
-|------|------|------|
-| **中文 feedback 可能不完整** | 当 `language: zh` 时，LLM 在 JSON mode 下可能提前关闭 JSON，导致 feedback 文本被截断。评分（score）不受影响，仅 feedback 描述文字可能不完整。 | 建议使用默认英文输出（`language: en`），英文下无此问题。 |
-| **截图依赖 LibreOffice + poppler** | Chart Appropriateness 和 Professional Formatting 维度需要截图才能评估。若 LibreOffice 或 poppler（pdf2image）未安装，这两个维度会报 ERROR。 | 安装 LibreOffice 和 poppler 即可解决。 |
-| **超大工作表解析慢** | 包含 100K+ 行或 1M+ 空行（因格式扩展）的工作表，Stage 1 解析可能较慢。 | 已自动清理空行并截断至 500 行。 |
-
----
-
-## 12. License
+## 11. License
 
 MIT
