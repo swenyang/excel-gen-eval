@@ -183,23 +183,43 @@ class BaseEvaluator(abc.ABC):
             score = parsed.get("score")
             feedback = parsed.get("feedback", "")
 
-            # Guard 2: suspiciously short output — retry once
+            # Guard 2: suspiciously short feedback — retry once
+            # JSON mode lets the model "exit early" with minimal valid JSON,
+            # especially for simple inputs. Retry with an explicit nudge.
             if (
-                response.output_tokens < 100
-                and len(feedback) < 50
+                len(feedback) < 100
+                and score is not None
                 and response.stop_reason != "max_tokens"
             ):
                 logger.warning(
-                    "Dimension %s: suspiciously short output (%d tokens, feedback=%d chars), retrying",
-                    self.dimension, response.output_tokens, len(feedback),
+                    "Dimension %s: short feedback (%d chars, %d output tokens), retrying with nudge",
+                    self.dimension, len(feedback), response.output_tokens,
                 )
+                # Add a nudge to the last message asking for detailed analysis
+                retry_messages = list(messages)
+                retry_messages.append({
+                    "role": "assistant",
+                    "content": response.content,
+                })
+                retry_messages.append({
+                    "role": "user",
+                    "content": (
+                        "Your feedback was too brief. Please provide a MORE DETAILED analysis "
+                        "with at least 3 specific findings in the evidence array. "
+                        "Respond with the complete JSON again."
+                    ),
+                })
                 response = await self.llm_client.complete_with_retry(
-                    messages, images=images, json_mode=True,
+                    retry_messages, images=images, json_mode=True,
                     json_schema=DIMENSION_EVAL_SCHEMA,
                 )
-                parsed = self._parse_response(response.content)
-                score = parsed.get("score")
-                feedback = parsed.get("feedback", "")
+                retry_parsed = self._parse_response(response.content)
+                retry_feedback = retry_parsed.get("feedback", "")
+                # Only use retry result if it's actually longer
+                if len(retry_feedback) > len(feedback):
+                    parsed = retry_parsed
+                    score = parsed.get("score")
+                    feedback = retry_feedback
 
             # Cap score when screenshots were needed but missing
             if (
