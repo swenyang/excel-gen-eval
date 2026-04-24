@@ -129,9 +129,11 @@ def _extract_sheets(excel_path: Path, lightweight: bool = False) -> list[SheetDa
             ws = wb_display[sheet_name]
             rows_data = []
             headers = []
+            raw_first_row_types: list[type] = []
             for row_idx, row in enumerate(ws.iter_rows(values_only=False)):
                 if row_idx == 0:
                     headers = [_display_value(cell) for cell in row]
+                    raw_first_row_types = [type(cell.value) for cell in row]
                     # Deduplicate headers (pandas requires unique column names)
                     seen: dict[str, int] = {}
                     for j, h in enumerate(headers):
@@ -145,7 +147,29 @@ def _extract_sheets(excel_path: Path, lightweight: bool = False) -> list[SheetDa
                     continue
                 rows_data.append([_display_value(cell) for cell in row])
 
-            df = pd.DataFrame(rows_data, columns=headers) if headers else df_raw
+            # Check if rows_data has any non-empty rows
+            _has_real_data = any(
+                any(v and str(v).strip() for v in row)
+                for row in rows_data
+            )
+            if _has_real_data:
+                df = pd.DataFrame(rows_data, columns=headers)
+            elif headers:
+                # Only a single row exists — it was consumed as the header.
+                # Heuristic: if any cell in the first row has a non-string
+                # type (number, date, bool), it's likely data, not a header.
+                from datetime import datetime, date
+                _data_like = any(
+                    t in (int, float, datetime, date, bool)
+                    for t in raw_first_row_types
+                )
+                if _data_like:
+                    df = pd.DataFrame([headers], columns=[f"Column_{i+1}" for i in range(len(headers))])
+                    row_count = 1
+                else:
+                    df = pd.DataFrame(columns=headers)
+            else:
+                df = df_raw
         else:
             df = df_raw
 
