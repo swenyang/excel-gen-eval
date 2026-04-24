@@ -83,6 +83,23 @@ class ScenarioDetector:
             if not isinstance(dim_reasoning, dict):
                 dim_reasoning = {}
 
+            # Heuristic: if the prompt is clearly a VBA/macro-only task and the
+            # LLM didn't mark formula_logic as N/A, override it.
+            if applicable_dimensions.get("formula_logic", True):
+                prompt_lower = (data.user_prompt or "").lower()
+                _vba_keywords = {"macro", "vba", "vba code", "vba script", "vba macro"}
+                _formula_keywords = {"formula", "sumif", "vlookup", "index", "match",
+                                     "countif", "sumproduct", "xlookup", "filter(", "=if("}
+                has_vba = any(kw in prompt_lower for kw in _vba_keywords)
+                has_formula = any(kw in prompt_lower for kw in _formula_keywords)
+                if has_vba and not has_formula:
+                    applicable_dimensions["formula_logic"] = False
+                    dim_reasoning["formula_logic"] = (
+                        "Task exclusively requests VBA/macro; formula_logic evaluates "
+                        "only worksheet formulas and is not applicable here."
+                    )
+                    logger.info("  Override: formula_logic → N/A (VBA-only prompt detected)")
+
             elapsed_ms = int((time.perf_counter() - start) * 1000)
             blend_str = ", ".join(f"{k}={v:.0%}" for k, v in blend.items())
             na_dims = [k for k, v in applicable_dimensions.items() if not v]

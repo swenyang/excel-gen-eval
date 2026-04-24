@@ -145,7 +145,7 @@ The `blend` field captures how much the workbook belongs to each scenario. Rules
 The `applicable_dimensions` field determines which evaluation dimensions are relevant for this task. Set a dimension to `false` ONLY when it is clearly irrelevant:
 - `chart_appropriateness` → `false` if the prompt is about fixing/debugging/completing/auditing an existing workbook and does NOT request creating charts or visualizations. Also `false` for pure data entry or template completion tasks without chart requests.
 - `professional_formatting` → `false` only if the task is purely about data values with no formatting expectations (rare — almost always `true`).
-- `formula_logic` → `false` if the workbook contains no formulas and the task doesn't require them (e.g., a static data table or contact list).
+- `formula_logic` → `false` if the task does not require **in-cell Excel formulas**. This includes: (1) static data tables or contact lists with no calculations, (2) tasks that **exclusively request a VBA macro / VBA code** to perform the work — even though macros contain logic, the `formula_logic` dimension evaluates only worksheet formulas (SUM, VLOOKUP, INDEX/MATCH, etc.), NOT VBA code. If the user prompt explicitly asks for a "macro", "VBA code", or "VBA script" and does NOT also ask for worksheet formulas, set this to `false`.
 - All other dimensions should almost always be `true`.
 - When in doubt, set `true` — it is better to evaluate a dimension and have the evaluator return N/A than to skip it prematurely.
 - Only include dimensions set to `false` in `dimension_reasoning`.
