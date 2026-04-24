@@ -275,11 +275,21 @@ def _extract_formulas(
     """Extract all formulas with their computed values."""
     formulas: list[FormulaInfo] = []
 
+    from openpyxl.worksheet.formula import ArrayFormula, DataTableFormula
+
     for ws in wb.worksheets:
         ws_values = wb_values[ws.title]
         for row in ws.iter_rows():
             for cell in row:
+                formula_text = None
                 if isinstance(cell.value, str) and cell.value.startswith("="):
+                    formula_text = cell.value
+                elif isinstance(cell.value, ArrayFormula):
+                    formula_text = f"{{{cell.value.text}}}"
+                elif isinstance(cell.value, DataTableFormula):
+                    formula_text = f"{{TABLE: r1={cell.value.r1}, r2={cell.value.r2}}}"
+
+                if formula_text is not None:
                     coord = cell.coordinate
                     computed = ws_values[coord].value
                     has_error = isinstance(computed, str) and computed.startswith("#")
@@ -287,7 +297,7 @@ def _extract_formulas(
                     formulas.append(FormulaInfo(
                         cell=coord,
                         sheet=ws.title,
-                        formula=cell.value,
+                        formula=formula_text,
                         computed_value=computed,
                         has_error=has_error,
                     ))
