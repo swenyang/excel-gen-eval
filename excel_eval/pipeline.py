@@ -249,6 +249,10 @@ class Pipeline:
             input_configs = [f.model_dump() for f in case_config.input_files]
             grounding = load_all_inputs(input_configs, case_dir)
 
+        # Recalculate formulas via LibreOffice so cached values are populated
+        from .parsers.recalc import recalculate_excel
+        excel_path = recalculate_excel(excel_path)
+
         # Parse Excel
         prepared = parse_excel(
             excel_path,
@@ -344,7 +348,7 @@ class Pipeline:
         """Run all dimension evaluations in parallel."""
         logger.info("Stage 2: Evaluating %d dimensions", len(ALL_EVALUATORS))
 
-        skip_set = set(case_config.skip_dimensions)
+        skip_set = set(case_config.skip_dimensions) | set(self.config.evaluation.skip_dimensions)
         semaphore = asyncio.Semaphore(self.config.evaluation.max_concurrent_calls)
         applicable = scenario_result.applicable_dimensions
         dim_reasoning = scenario_result.dimension_reasoning
