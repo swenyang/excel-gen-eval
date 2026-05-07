@@ -213,6 +213,7 @@ class EvalConfig(BaseModel):
     screenshot_enabled: bool = True
     max_input_tokens_per_dimension: int = 100000
     language: str = "zh"  # Output language: "zh" (Chinese), "en" (English), etc.
+    skip_dimensions: list[str] = Field(default_factory=list)  # Global skip list
 
 
 class OutputConfig(BaseModel):
