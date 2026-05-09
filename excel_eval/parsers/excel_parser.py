@@ -417,14 +417,25 @@ def _extract_formatting(wb: openpyxl.Workbook) -> FormatInfo:
                             theme_font_name = cell.font.name
                     else:
                         fonts_used.add(cell.font.name)
-                if cell.font and cell.font.color and cell.font.color.rgb:
-                    color = str(cell.font.color.rgb)
-                    if color != "00000000":
-                        colors_used.add(color)
-                if cell.fill and cell.fill.start_color and cell.fill.start_color.rgb:
-                    color = str(cell.fill.start_color.rgb)
-                    if color != "00000000":
-                        colors_used.add(color)
+                if cell.font and cell.font.color:
+                    try:
+                        font_color_rgb = cell.font.color.rgb
+                    except (AttributeError, TypeError):
+                        font_color_rgb = None
+                    if font_color_rgb:
+                        color = str(font_color_rgb)
+                        if color != "00000000":
+                            colors_used.add(color)
+                if cell.fill:
+                    # PatternFill has start_color; GradientFill / others don't.
+                    try:
+                        fill_color_rgb = cell.fill.start_color.rgb  # type: ignore[union-attr]
+                    except (AttributeError, TypeError):
+                        fill_color_rgb = None
+                    if fill_color_rgb:
+                        color = str(fill_color_rgb)
+                        if color != "00000000":
+                            colors_used.add(color)
                 # Border detection
                 if cell.border:
                     has_any = False
